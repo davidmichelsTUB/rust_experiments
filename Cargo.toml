@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ndarray = "0.17.2"
+ndarray = { version = "0.17.2", features = ["rayon"] }
 ndarray-rand = "0.16.0"
+numpy = "0.28.0"
+pyo3 = { version = ">=0.24.2", features = ["extension-module", "abi3-py310"] }
 rayon = "1.12.0"
