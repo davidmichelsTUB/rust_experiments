@@ -1,9 +1,0 @@
-[package]
-name = "rust_experiments"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-ndarray = "0.17.2"
-ndarray-rand = "0.16.0"
-rayon = "1.12.0"
