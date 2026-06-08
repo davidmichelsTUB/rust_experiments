@@ -1,7 +1,4 @@
-use ndarray::Array2;
 use ndarray::Axis;
-use rayon::prelude::*;
-
 pub fn compute_minmax_scale_fit(
     x: ndarray::ArrayView2<f32>,
     n_chunks: usize,
@@ -9,7 +6,7 @@ pub fn compute_minmax_scale_fit(
     let (n_rows, n_cols) = x.dim();
     let chunk_size = (n_rows / n_chunks).max(1);
     
-    let mut compute = || {
+    let compute = || {
         let partials: Vec<(Vec<f32>, Vec<f32>)> = x
             .axis_chunks_iter(Axis(0), chunk_size)
             .map(|chunk| {

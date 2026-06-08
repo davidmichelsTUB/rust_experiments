@@ -48,8 +48,8 @@ pub fn compute_minmax_scale_fit(
 
 pub fn compute_minmax_scale_transform(
     x: ndarray::ArrayView2<f32>,
-    min: ndarray::Array1<f32>,
-    max: ndarray::Array1<f32>,
+    min: ndarray::ArrayView1<f32>,
+    max: ndarray::ArrayView1<f32>,
     n_chunks: usize,
 ) -> ndarray::Array2<f32> {
     let (n_rows, n_cols) = x.dim();
@@ -85,7 +85,32 @@ pub fn minmax_scale_fit(
     }
     let x_view = x.as_array();
     let (min, max) = py.detach(|| compute_minmax_scale_fit(x_view, n_chunks));
-    let py_mean = min.into_pyarray(py).to_owned();
-    let py_scale = max.into_pyarray(py).to_owned();
-    Ok((Py::from(py_mean), Py::from(py_scale)))
+    let py_min = min.into_pyarray(py).to_owned();
+    let py_max = max.into_pyarray(py).to_owned();
+    Ok((Py::from(py_min), Py::from(py_max)))
+}
+
+#[pyfunction]
+#[pyo3(signature = (x, min, max, n_chunks))]
+pub fn minmax_scale_transform(
+    py: Python<'_>,
+    x: PyReadonlyArray2<f32>,
+    min: PyReadonlyArray1<f32>,
+    max: PyReadonlyArray1<f32>,
+    n_chunks: usize,
+) -> PyResult<Py<PyArray2<f32>>> {
+    if n_chunks == 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "n_chunks must be >= 1",
+        ));
+    }
+
+    let x_view = x.as_array();
+    let min_view = min.as_array();
+    let max_view = max.as_array();
+
+    let result = compute_minmax_scale_transform(x_view, min_view, max_view, n_chunks);
+    let py_result = result.into_pyarray(py).to_owned();
+
+    Ok(Py::from(py_result))
 }

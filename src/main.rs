@@ -16,12 +16,8 @@ fn main() {
     let (min_vals, max_vals) = pariter::compute_minmax_scale_fit(x_view, N_CHUNKS);
     println!("{:?}", (&min_vals, &max_vals));
 
-    let x_transformed = pariter::compute_minmax_scale_transform(
-        x_view,
-        min_vals.clone(),
-        max_vals.clone(),
-        N_CHUNKS,
-    );
+    let x_transformed =
+        pariter::compute_minmax_scale_transform(x_view, min_vals.view(), max_vals.view(), N_CHUNKS);
     let (min_vals_test, max_vals_test) =
         pariter::compute_minmax_scale_fit(x_transformed.view(), N_CHUNKS);
 

@@ -8,3 +8,15 @@ dependencies = [
     "numpy>=2.4.6",
     "scikit-learn>=1.9.0",
 ]
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+manifest-path = "../Cargo.toml"
+features = ["pyo3/extension-module"]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.13.3",
+]

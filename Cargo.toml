@@ -3,6 +3,11 @@ name = "rust_experiments"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "rust_backend"
+crate-type = ["cdylib"]
+
+
 [dependencies]
 ndarray = { version = "0.17.2", features = ["rayon"] }
 ndarray-rand = "0.16.0"
