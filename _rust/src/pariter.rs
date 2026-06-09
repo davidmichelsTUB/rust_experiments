@@ -9,7 +9,6 @@ pub fn compute_minmax_scale_fit(
 ) -> (ndarray::Array1<f32>, ndarray::Array1<f32>) {
     let (n_rows, n_cols) = x.dim();
     let chunk_size = (n_rows / n_chunks).max(1);
-
     let compute = || {
         x.axis_chunks_iter(Axis(0), chunk_size)
             .into_par_iter()
@@ -56,14 +55,24 @@ pub fn compute_minmax_scale_transform(
     let chunk_size = (n_rows / n_chunks).max(1);
     let mut out = ndarray::Array2::<f32>::zeros((n_rows, n_cols));
 
+    let min64: Vec<f64> = min.iter().map(|&v| v as f64).collect();
+    let inv_range: Vec<f64> = min
+        .iter()
+        .zip(max.iter())
+        .map(|(&lo, &hi)| {
+            let range = hi as f64 - lo as f64;
+            if range == 0.0 { 0.0 } else { 1.0 / range }
+        })
+        .collect();
+
     out.axis_chunks_iter_mut(Axis(0), chunk_size)
         .into_par_iter()
         .zip(x.axis_chunks_iter(Axis(0), chunk_size).into_par_iter())
         .for_each(|(mut out_chunk, in_chunk)| {
             for (mut out_row, in_row) in out_chunk.rows_mut().into_iter().zip(in_chunk.rows()) {
                 for col_idx in 0..n_cols {
-                    out_row[col_idx] =
-                        (in_row[col_idx] - min[col_idx]) / (max[col_idx] - min[col_idx])
+                    let scaled = (in_row[col_idx] as f64 - min64[col_idx]) * inv_range[col_idx];
+                    out_row[col_idx] = scaled as f32;
                 }
             }
         });
@@ -109,7 +118,7 @@ pub fn minmax_scale_transform(
     let min_view = min.as_array();
     let max_view = max.as_array();
 
-    let result = compute_minmax_scale_transform(x_view, min_view, max_view, n_chunks);
+    let result = py.detach(|| compute_minmax_scale_transform(x_view, min_view, max_view, n_chunks));
     let py_result = result.into_pyarray(py).to_owned();
 
     Ok(Py::from(py_result))

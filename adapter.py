@@ -43,6 +43,7 @@ class RustyMinMaxScaler(_SKMinMaxScaler):
             return super().fit(X, y)
 
         X_arr = np.asarray(X, dtype=np.float32)
+        
         data_min, data_max = minmax_scale_fit(X_arr, self._n_chunks(X_arr))
 
         self.data_min_ = data_min.astype(np.float64)

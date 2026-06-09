@@ -3,15 +3,13 @@ use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Uniform;
 
 use std::time::Instant;
-mod baseline;
-mod const_generic;
 mod pariter;
 
 fn main() {
     let x = Array2::<f32>::random((10_000_000, 5), Uniform::new(4., 10.).unwrap());
     let x_view = x.view();
     const N_CHUNKS: usize = 255;
-
+    
     let start = Instant::now();
     let (min_vals, max_vals) = pariter::compute_minmax_scale_fit(x_view, N_CHUNKS);
     println!("{:?}", (&min_vals, &max_vals));
