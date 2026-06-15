@@ -19,9 +19,9 @@ def _get_data(n_rows: int,n_cols:int,seed = SEED):
 def warmup():
     for _ in range(N_WARMUP_RUNS):
         SKScaler = MinMaxScaler()
-        _time_fit_transform(SKScaler,_get_data(n_cols_list[1], n_rows_list[2]))
+        _time_fit_transform(SKScaler,_get_data(n_rows_list[2], n_cols_list[1]))
         RustScaler = RustyMinMaxScaler()
-        _time_fit_transform(RustScaler,_get_data(n_cols_list[1], n_rows_list[2]))
+        _time_fit_transform(RustScaler,_get_data(n_rows_list[2], n_cols_list[1]))
 
 
         
@@ -42,7 +42,8 @@ def main():
     warmup()
     with open("benchmark.csv","w+") as f:
             f.write("n_rows,n_cols,baseline_fit,baseline_transform,rust_fit,rust_transform")
-    for n_cols,n_rows in tqdm(product(n_cols_list,n_rows_list)):
+    for n_cols,n_rows in product(n_cols_list,n_rows_list):
+        print(f"Processing {n_cols,n_rows}")
         data = _get_data(n_rows,n_cols)
         results = []
         for _ in range(N_REPEATS):

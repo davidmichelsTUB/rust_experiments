@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+import sys
 
 df = pd.read_csv("benchmark.csv")
 UNIT = "ms" 
@@ -65,5 +66,5 @@ fig.legend(handles=legend_handles, ncol=4, loc="upper center",
 fig.suptitle("sklearn vs Rust MinMaxScaler  (fit + transform stacked)",
              fontsize=14, y=1.06)
 fig.tight_layout()
-fig.savefig("benchmark.png", dpi=150, bbox_inches="tight")
+fig.savefig(f"results/benchmark_{sys.argv[1]}.png", dpi=150, bbox_inches="tight")
 plt.show()

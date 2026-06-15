@@ -1,6 +1,7 @@
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Uniform;
+use rayon::prelude::*;
 
 use std::time::Instant;
 mod pariter;
@@ -9,7 +10,7 @@ fn main() {
     let x = Array2::<f32>::random((10_000_000, 5), Uniform::new(4., 10.).unwrap());
     let x_view = x.view();
     const N_CHUNKS: usize = 255;
-    
+
     let start = Instant::now();
     let (min_vals, max_vals) = pariter::compute_minmax_scale_fit(x_view, N_CHUNKS);
     println!("{:?}", (&min_vals, &max_vals));
@@ -23,3 +24,13 @@ fn main() {
     let duration = start.elapsed();
     println!("Time{duration:?}")
 }
+
+// fn main() {
+//     let numbers: Vec<i32> = (1..100).collect();
+//     numbers
+//         .clone()
+//         .into_par_iter()
+//         .for_each(|n| print!(" {:?}", n));
+//     println!("\n\n\n");
+//     numbers.clone().iter().for_each(|n| print!(" {:?}", n));
+// }

@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler as _SKMinMaxScaler
 from sklearn.utils.validation import check_is_fitted
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 MIN_BLOCK_LEN = 10_000
@@ -35,45 +36,47 @@ class RustyMinMaxScaler(_SKMinMaxScaler):
             self.n_jobs = n_jobs
 
     def _n_chunks(self, X):
+        print(f"N_rows = {X.shape[0]}")
+        
         blocks = max(1, X.shape[0] // MIN_BLOCK_LEN)
+        print(f"Number of blocks: {blocks}")
         return min(blocks, self.n_jobs)
 
     def fit(self, X, y=None, sample_weight=None):
         if not HAVE_RUST or minmax_scale_fit is None or not self._supported_params or sample_weight is not None:
             return super().fit(X, y)
+        t0 = time.perf_counter()
 
         X_arr = np.asarray(X, dtype=np.float32)
-        
+        t1 = time.perf_counter()
+
         data_min, data_max = minmax_scale_fit(X_arr, self._n_chunks(X_arr))
 
         self.data_min_ = data_min.astype(np.float64)
         self.data_max_ = data_max.astype(np.float64)
-        self.data_range_ = self.data_max_ - self.data_min_
-        fmin, fmax = self.feature_range
-        self.scale_ = (fmax - fmin) / self.data_range_
-        self.min_ = fmin - self.data_min_ * self.scale_
-        self.n_features_in_ = X_arr.shape[1]
-        self.n_samples_seen_ = X_arr.shape[0]
+        t2 = time.perf_counter()
+        print(f"convert={1000*(t1-t0):.3f}ms  rust={1000*(t2-t1):.3f}ms")
+
         return self
 
     def transform(self, X):
         if not HAVE_RUST or minmax_scale_transform is None or not self._supported_params:
             return super().transform(X)
+        t0 = time.perf_counter()
 
         check_is_fitted(self)
         X_arr = np.asarray(X, dtype=np.float32)
         data_min = self.data_min_.astype(np.float32)
         data_max = self.data_max_.astype(np.float32)
+        t1 = time.perf_counter()
 
         try:
             out = minmax_scale_transform(X_arr, data_min, data_max, self._n_chunks(X_arr))
         except Exception as e:
             logger.warning(f"Rust minmax_scale_transform failed, falling back: {e}")
             return super().transform(X)
-
-        fmin, fmax = self.feature_range
-        if fmin != 0.0 or fmax != 1.0:
-            out = out * (fmax - fmin) + fmin
+        t2 = time.perf_counter()
+        print(f"convert={1000*(t1-t0):.3f}ms  rust={1000*(t2-t1):.3f}ms")
         return out
 
     def fit_transform(self, X, y=None, **fit_params):

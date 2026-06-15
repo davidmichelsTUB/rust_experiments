@@ -1,0 +1,362 @@
+.section .text.rust_backend::pariter::__pyfunction_minmax_scale_fit,"ax",@progbits
+	.p2align	4
+.type	rust_backend::pariter::__pyfunction_minmax_scale_fit,@function
+rust_backend::pariter::__pyfunction_minmax_scale_fit:
+	.cfi_startproc
+	.cfi_personality 155, DW.ref.rust_eh_personality
+	.cfi_lsda 27, .Lexception9
+	push rbp
+	.cfi_def_cfa_offset 16
+	push r15
+	.cfi_def_cfa_offset 24
+	push r14
+	.cfi_def_cfa_offset 32
+	push r13
+	.cfi_def_cfa_offset 40
+	push r12
+	.cfi_def_cfa_offset 48
+	push rbx
+	.cfi_def_cfa_offset 56
+	sub rsp, 472
+	.cfi_def_cfa_offset 528
+	.cfi_offset rbx, -56
+	.cfi_offset r12, -48
+	.cfi_offset r13, -40
+	.cfi_offset r14, -32
+	.cfi_offset r15, -24
+	.cfi_offset rbp, -16
+	mov r14, rdi
+	vxorps xmm0, xmm0, xmm0
+	vmovaps xmmword ptr [rsp + 144], xmm0
+	mov qword ptr [rsp], 2
+	lea rsi, [rip + .Lanon.63447dc2de7a85fa5e47bc59f948620e.29]
+	lea rdi, [rsp + 40]
+	lea r9, [rsp + 144]
+	call pyo3::impl_::extract_argument::FunctionDescription::extract_arguments_fastcall
+	cmp dword ptr [rsp + 40], 1
+	jne .LBB12_2
+	vmovups ymm0, ymmword ptr [rsp + 48]
+	vmovups ymm1, ymmword ptr [rsp + 72]
+	vmovups ymmword ptr [r14 + 32], ymm1
+	vmovups ymmword ptr [r14 + 8], ymm0
+	mov qword ptr [r14], 1
+	jmp .LBB12_48
+.LBB12_2:
+	mov rsi, qword ptr [rsp + 144]
+	lea rdi, [rsp + 40]
+	call pyo3::impl_::extract_argument::extract_argument
+	mov r13, qword ptr [rsp + 48]
+	cmp dword ptr [rsp + 40], 1
+	jne .LBB12_4
+	vmovups ymm0, ymmword ptr [rsp + 56]
+	vmovups ymm1, ymmword ptr [rsp + 72]
+	vmovups ymmword ptr [r14 + 32], ymm1
+	vmovups ymmword ptr [r14 + 16], ymm0
+	mov qword ptr [r14 + 8], r13
+	mov qword ptr [r14], 1
+	jmp .LBB12_48
+.LBB12_4:
+	mov rsi, qword ptr [rsp + 152]
+	lea r15, [rsp + 40]
+	mov rdi, r15
+	call qword ptr [rip + pyo3::conversions::std::num::<impl pyo3::conversion::FromPyObject for usize>::extract@GOTPCREL]
+	cmp dword ptr [rsp + 40], 1
+	je .LBB12_6
+	mov rbx, qword ptr [rsp + 48]
+	test rbx, rbx
+	je .LBB12_14
+	lea rdi, [rsp + 384]
+	mov qword ptr [rsp + 24], r13
+	mov rsi, r13
+	call numpy::array::as_view
+	call qword ptr [rip + pyo3::internal::state::SuspendAttach::new@GOTPCREL]
+	mov qword ptr [rsp + 160], rax
+	mov qword ptr [rsp + 168], rdx
+	mov rdi, qword ptr [rsp + 384]
+	mov rcx, qword ptr [rsp + 392]
+	mov r8, qword ptr [rsp + 400]
+	mov qword ptr [rsp + 176], r8
+	mov rax, rcx
+	or rax, rbx
+	shr rax, 32
+	je .LBB12_22
+	mov rax, rcx
+	xor edx, edx
+	div rbx
+	mov rsi, rax
+	jmp .LBB12_24
+.LBB12_14:
+	call qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
+	mov edi, 16
+	mov esi, 8
+	call qword ptr [rip + __rustc::__rust_alloc@GOTPCREL]
+	test rax, rax
+	je .LBB12_15
+	mov r15, rax
+	lea rax, [rip + .Lanon.63447dc2de7a85fa5e47bc59f948620e.17]
+	mov qword ptr [r15], rax
+	mov qword ptr [r15 + 8], 21
+	mov rdi, r13
+	call qword ptr [rip + numpy::borrow::shared::release@GOTPCREL]
+	mov rdi, r13
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	vxorps xmm0, xmm0, xmm0
+	vmovups xmmword ptr [r14 + 40], xmm0
+	mov qword ptr [r14 + 8], 1
+	mov qword ptr [r14 + 16], 0
+	mov qword ptr [r14 + 24], r15
+	lea rax, [rip + .Lanon.63447dc2de7a85fa5e47bc59f948620e.18]
+	mov qword ptr [r14 + 32], rax
+	mov dword ptr [r14 + 56], 3
+	mov r13d, 1
+	jmp .LBB12_47
+.LBB12_22:
+	mov eax, ecx
+	xor edx, edx
+	div ebx
+	mov esi, eax
+.LBB12_24:
+	cmp rsi, 1
+	adc rsi, 0
+	mov rax, rcx
+	or rax, rsi
+	shr rax, 32
+	je .LBB12_25
+	mov rax, rcx
+	xor edx, edx
+	div rsi
+	jmp .LBB12_27
+.LBB12_25:
+	mov eax, ecx
+	xor edx, edx
+	div esi
+.LBB12_27:
+	cmp rdx, 1
+	mov r12, rax
+	sbb r12, -1
+	mov r9, qword ptr [rsp + 408]
+	imul r9, rsi
+	test rcx, rcx
+	mov qword ptr [rsp + 48], rsi
+	mov qword ptr [rsp + 56], r8
+	vmovups xmm0, xmmword ptr [rsp + 408]
+	cmove r9, rcx
+	vmovups xmmword ptr [rsp + 64], xmm0
+	mov qword ptr [rsp + 80], 0
+	mov qword ptr [rsp + 88], r12
+	mov qword ptr [rsp + 96], r9
+	mov qword ptr [rsp + 104], rdi
+	mov qword ptr [rsp + 112], rdx
+	mov qword ptr [rsp + 120], r8
+	mov qword ptr [rsp + 128], rax
+	mov qword ptr [rsp + 136], 1
+	lea rcx, [rsp + 176]
+	mov qword ptr [rsp + 40], rcx
+	mov qword ptr [rsp + 184], rcx
+	mov rcx, qword ptr [rsp + 48]
+	mov qword ptr [rsp + 256], rcx
+	mov rcx, qword ptr [rsp + 56]
+	mov qword ptr [rsp + 264], rcx
+	vmovups xmm0, xmmword ptr [rsp + 64]
+	vmovups xmmword ptr [rsp + 272], xmm0
+	mov rcx, qword ptr [rsp + 96]
+	mov qword ptr [rsp + 304], rcx
+	mov rcx, qword ptr [rsp + 104]
+	mov qword ptr [rsp + 312], rcx
+	mov rcx, qword ptr [rsp + 112]
+	mov qword ptr [rsp + 320], rcx
+	mov rcx, qword ptr [rsp + 120]
+	mov qword ptr [rsp + 328], rcx
+	mov qword ptr [rsp + 336], rax
+	mov qword ptr [rsp + 376], r12
+	lea rax, [rsp + 184]
+	mov qword ptr [rsp + 352], rax
+	lea rax, [rsp + 15]
+	mov qword ptr [rsp + 360], rax
+	mov qword ptr [rsp + 368], r15
+	mov qword ptr [rsp + 288], 0
+	mov qword ptr [rsp + 296], r12
+	mov qword ptr [rsp + 344], 1
+	call qword ptr [rip + rayon_core::current_num_threads@GOTPCREL]
+	xor ecx, ecx
+	cmp r12, -1
+	sete cl
+	cmp rcx, rax
+	cmova rax, rcx
+	lea rcx, [rsp + 352]
+	mov qword ptr [rsp], rcx
+	lea rdi, [rsp + 192]
+	lea r9, [rsp + 256]
+	mov r8d, 1
+	mov rsi, r12
+	xor edx, edx
+	mov rcx, rax
+	call rayon::iter::plumbing::bridge_producer_consumer::helper
+	mov r15, qword ptr [rsp + 192]
+	mov r13, qword ptr [rsp + 200]
+	mov r12, qword ptr [rsp + 208]
+	mov rax, qword ptr [rsp + 216]
+	mov qword ptr [rsp + 16], rax
+	mov rax, qword ptr [rsp + 224]
+	mov qword ptr [rsp + 32], rax
+	mov rbp, qword ptr [rsp + 232]
+	xor ebx, ebx
+	test rbp, rbp
+	setne byte ptr [rsp + 14]
+	lea rdi, [rsp + 160]
+	call qword ptr [rip + <pyo3::internal::state::SuspendAttach as core::ops::drop::Drop>::drop@GOTPCREL]
+	xor eax, eax
+	test r12, r12
+	setne al
+	mov qword ptr [rsp + 424], r13
+	mov qword ptr [rsp + 432], r12
+	mov qword ptr [rsp + 440], r15
+	mov qword ptr [rsp + 448], r13
+	mov qword ptr [rsp + 456], r12
+	mov qword ptr [rsp + 464], rax
+	lea rdi, [rsp + 424]
+	call numpy::array::PyArray<T,D>::from_owned_array
+	mov r15, rax
+	movzx eax, byte ptr [rsp + 14]
+	mov bl, al
+	mov rdi, r15
+	call qword ptr [rip + _Py_IncRef@GOTPCREL]
+	mov rdi, r15
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	mov rcx, qword ptr [rsp + 32]
+	mov qword ptr [rsp + 40], rcx
+	mov qword ptr [rsp + 48], rbp
+	mov rax, qword ptr [rsp + 16]
+	mov qword ptr [rsp + 56], rax
+	mov qword ptr [rsp + 64], rcx
+	mov qword ptr [rsp + 72], rbp
+	mov qword ptr [rsp + 80], rbx
+	lea rdi, [rsp + 40]
+	call numpy::array::PyArray<T,D>::from_owned_array
+	mov r12, rax
+	mov rdi, rax
+	call qword ptr [rip + _Py_IncRef@GOTPCREL]
+	mov rdi, r12
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	mov r13, qword ptr [rsp + 24]
+	mov rdi, r13
+	call qword ptr [rip + numpy::borrow::shared::release@GOTPCREL]
+	mov rdi, r13
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	mov edi, 2
+	call qword ptr [rip + PyTuple_New@GOTPCREL]
+	test rax, rax
+	je .LBB12_34
+	mov rbx, rax
+	mov rbp, qword ptr [rip + PyTuple_SetItem@GOTPCREL]
+	xor r13d, r13d
+	mov rdi, rax
+	xor esi, esi
+	mov rdx, r15
+	call rbp
+	mov esi, 1
+	mov rdi, rbx
+	mov rdx, r12
+	call rbp
+	mov qword ptr [r14 + 8], rbx
+.LBB12_47:
+	mov qword ptr [r14], r13
+.LBB12_48:
+	mov rax, r14
+	add rsp, 472
+	.cfi_def_cfa_offset 56
+	pop rbx
+	.cfi_def_cfa_offset 48
+	pop r12
+	.cfi_def_cfa_offset 40
+	pop r13
+	.cfi_def_cfa_offset 32
+	pop r14
+	.cfi_def_cfa_offset 24
+	pop r15
+	.cfi_def_cfa_offset 16
+	pop rbp
+	.cfi_def_cfa_offset 8
+	vzeroupper
+	ret
+.LBB12_6:
+	.cfi_def_cfa_offset 528
+	lea rax, [rsp + 48]
+	vmovups ymm0, ymmword ptr [rax]
+	vmovups ymm1, ymmword ptr [rax + 24]
+	vmovups ymmword ptr [rsp + 216], ymm1
+	vmovups ymmword ptr [rsp + 192], ymm0
+	lea rdi, [rsp + 264]
+	lea rsi, [rip + .Lanon.63447dc2de7a85fa5e47bc59f948620e.27]
+	lea rcx, [rsp + 192]
+	mov edx, 8
+	vzeroupper
+	call qword ptr [rip + pyo3::impl_::extract_argument::argument_extraction_error@GOTPCREL]
+	mov rax, qword ptr [rsp + 264]
+	vmovups ymm0, ymmword ptr [rsp + 288]
+	vmovups ymmword ptr [r14 + 32], ymm0
+	vmovups ymm0, ymmword ptr [rsp + 272]
+	vmovups ymmword ptr [r14 + 16], ymm0
+	mov qword ptr [r14 + 8], rax
+	mov qword ptr [r14], 1
+	mov rdi, r13
+	vzeroupper
+	call qword ptr [rip + numpy::borrow::shared::release@GOTPCREL]
+	mov rdi, r13
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	jmp .LBB12_48
+.LBB12_34:
+	lea rdi, [rip + .Lanon.63447dc2de7a85fa5e47bc59f948620e.55]
+	call qword ptr [rip + pyo3::instance::panic_on_null@GOTPCREL]
+	jmp .LBB12_16
+.LBB12_15:
+	mov qword ptr [rsp + 24], r13
+	mov edi, 8
+	mov esi, 16
+	call qword ptr [rip + alloc::alloc::handle_alloc_error@GOTPCREL]
+.LBB12_16:
+	ud2
+	jmp .LBB12_10
+	jmp .LBB12_10
+.LBB12_10:
+	mov r14, rax
+	jmp .LBB12_11
+	mov r14, rax
+	mov rdi, r15
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	jmp .LBB12_42
+	mov r14, rax
+	cmp qword ptr [rsp + 16], 0
+	je .LBB12_42
+	mov rsi, qword ptr [rsp + 16]
+	shl rsi, 2
+	mov edx, 4
+	mov rdi, qword ptr [rsp + 32]
+	call qword ptr [rip + __rustc::__rust_dealloc@GOTPCREL]
+	jmp .LBB12_42
+	mov r14, rax
+	mov rdi, r13
+	call core::ptr::drop_in_place<numpy::borrow::PyReadonlyArray<f32,ndarray::dimension::dim::Dim<[usize; 1]>>>
+	jmp .LBB12_12
+	call qword ptr [rip + core::panicking::panic_in_cleanup@GOTPCREL]
+	mov r14, rax
+	lea rdi, [rsp + 160]
+	call qword ptr [rip + <pyo3::internal::state::SuspendAttach as core::ops::drop::Drop>::drop@GOTPCREL]
+	jmp .LBB12_42
+	call qword ptr [rip + core::panicking::panic_in_cleanup@GOTPCREL]
+	mov r14, rax
+.LBB12_42:
+	mov rdi, qword ptr [rsp + 24]
+	call core::ptr::drop_in_place<numpy::borrow::PyReadonlyArray<f32,ndarray::dimension::dim::Dim<[usize; 1]>>>
+	jmp .LBB12_12
+	call qword ptr [rip + core::panicking::panic_in_cleanup@GOTPCREL]
+	mov r14, rax
+	mov rdi, r15
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+	mov r13, r12
+.LBB12_11:
+	mov rdi, r13
+	call qword ptr [rip + _Py_DecRef@GOTPCREL]
+.LBB12_12:
+	mov rdi, r14
+	call _Unwind_Resume@PLT
