@@ -1,0 +1,19 @@
+[package]
+name = "rust_experiments"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rust_logistic"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "rust_experiments"
+path = "src/main.rs"
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+numpy = "0.22"
+ndarray = "0.16"
+argmin = "0.9"
+argmin-math = { version = "0.3", features = ["vec"] }

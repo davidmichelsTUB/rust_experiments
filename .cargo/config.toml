@@ -1,0 +1,5 @@
+[env]
+# Python 3.14 is newer than pyo3 0.22's declared maximum (3.13).
+# This flag bypasses the version check and builds against the stable ABI,
+# which is forward-compatible with Python 3.14.
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"

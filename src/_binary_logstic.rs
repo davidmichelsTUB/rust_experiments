@@ -1,0 +1,75 @@
+use ndarray::{Array, Array1, ArrayView1, ArrayView2, Axis};
+use ndarray::parallel::prelude::*;
+use rayon::prelude::*;
+
+// Using existing solvers
+use argmin::core::{CostFunction, Gradient, Executor};
+
+//LBGFS
+use argmin::solver::lbfgs::LBFGS;
+use argmin::solver::linesearch::MoreThuenteLineSearch;
+
+
+#[inline(always)]
+fn sigmoid(z: f32) -> f32 {
+    1.0/ (1.0 + (-z).exp())
+}
+
+
+// Variant 1: Use BLAS dgemv + mapv (two passes)
+fn dot_sigmoid_blas(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
+    x.dot(&w).mapv_into(sigmoid)
+}
+
+// Variant 2: Parallelize the dot product + sigmoid using rayon
+fn dot_sigmoid_fused_parallel(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
+    Array::from_vec(
+        x.axis_iter(Axis(0))
+            .into_par_iter()
+            .map(|row| sigmoid(row.dot(&w)))
+            .collect()
+    )
+}
+
+// Here the "real" function will call the kernel
+pub fn predict_proba_impl(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) -> Array1<f32> {
+    match kernel {
+        "fused_parallel" => dot_sigmoid_fused_parallel(x, w),
+        "blas" => dot_sigmoid_blas(x, w),
+        _ => panic!("Unknown kernel"),
+    }
+}
+
+////////////////////////////////////////////////////////////////////////
+
+
+// Loss has its own kernel
+pub fn compute_loss(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f32>, l1_reg: f32, l2_reg: f32) -> f32 {
+    let (log_loss, reg) = rayon::join(|| {
+        x.axis_iter(Axis(0)).into_par_iter().zip(y.into_par_iter()).map(|(row, label)| {
+            let pred = sigmoid(row.dot(&w));
+            -pred.ln() * *label - (1.0 - pred).ln()* (1.0 - *label)
+        }).sum()
+    }, || {
+        w.mapv(|wi| l1_reg * wi.abs() + l2_reg * wi * wi).sum()
+    });
+    (log_loss + reg)/ (x.nrows() as f32)
+}
+
+// Gradient has its own kernel
+pub fn compute_gradient(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f32>, l1_reg: f32, l2_reg: f32) -> Array1<f32> {
+    let (loss_grad, reg_grad) = rayon::join(|| {
+        x.axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(y.into_par_iter())
+            .map(|(row, label)| row.mapv(|xi| xi * (sigmoid(row.dot(&w)) - *label)))
+            .reduce(|| Array1::zeros(w.len()), |a, b| a + b)
+    }, || {
+        w.mapv(|wi| l1_reg * wi.signum() + 2.0 * l2_reg * wi)
+    });
+    (loss_grad + reg_grad) / (x.nrows() as f32)
+}
+
+
+
+
