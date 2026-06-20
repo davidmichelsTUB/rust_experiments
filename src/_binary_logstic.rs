@@ -1,13 +1,5 @@
 use ndarray::{Array, Array1, ArrayView1, ArrayView2, Axis};
 use ndarray::parallel::prelude::*;
-use rayon::prelude::*;
-
-// Using existing solvers
-use argmin::core::{CostFunction, Gradient, Executor};
-
-//LBGFS
-use argmin::solver::lbfgs::LBFGS;
-use argmin::solver::linesearch::MoreThuenteLineSearch;
 
 
 #[inline(always)]
@@ -46,10 +38,10 @@ pub fn predict_proba_impl(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) 
 // Loss has its own kernel
 pub fn compute_loss(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f32>, l1_reg: f32, l2_reg: f32) -> f32 {
     let (log_loss, reg) = rayon::join(|| {
-        x.axis_iter(Axis(0)).into_par_iter().zip(y.into_par_iter()).map(|(row, label)| {
+        x.axis_iter(Axis(0)).into_par_iter().zip(y.as_slice().unwrap().into_par_iter()).map(|(row, label)| {
             let pred = sigmoid(row.dot(&w));
             -pred.ln() * *label - (1.0 - pred).ln()* (1.0 - *label)
-        }).sum()
+        }).sum::<f32>()
     }, || {
         w.mapv(|wi| l1_reg * wi.abs() + l2_reg * wi * wi).sum()
     });
@@ -61,7 +53,7 @@ pub fn compute_gradient(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f3
     let (loss_grad, reg_grad) = rayon::join(|| {
         x.axis_iter(Axis(0))
             .into_par_iter()
-            .zip(y.into_par_iter())
+            .zip(y.as_slice().unwrap().into_par_iter())
             .map(|(row, label)| row.mapv(|xi| xi * (sigmoid(row.dot(&w)) - *label)))
             .reduce(|| Array1::zeros(w.len()), |a, b| a + b)
     }, || {
@@ -69,7 +61,6 @@ pub fn compute_gradient(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f3
     });
     (loss_grad + reg_grad) / (x.nrows() as f32)
 }
-
 
 
 

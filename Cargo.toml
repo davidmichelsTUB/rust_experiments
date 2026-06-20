@@ -7,13 +7,12 @@ edition = "2021"
 name = "rust_logistic"
 crate-type = ["cdylib", "rlib"]
 
-[[bin]]
-name = "rust_experiments"
-path = "src/main.rs"
 
 [dependencies]
 pyo3 = { version = "0.22", features = ["extension-module"] }
+rayon = "1.12.0"
+ndarray = {version = "0.16.1", features = ["rayon"]}
 numpy = "0.22"
-ndarray = "0.16"
-argmin = "0.9"
-argmin-math = { version = "0.3", features = ["vec"] }
+argmin = "0.11.0"
+argmin-math = { version = "0.5.1", features = ["ndarray_latest"] }
+
