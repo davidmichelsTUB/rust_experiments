@@ -2,6 +2,11 @@ from sklearn.linear_model import LogisticRegression as SklearnLogisticRegression
 import rust_logistic
 import numpy as np
 
+
+_FIT = {
+    "lbfgs" : rust_logistic.binary_lbfgs_fit,
+}
+
 class LogisticRegression(SklearnLogisticRegression):
     def __init__(
         self,
@@ -11,7 +16,7 @@ class LogisticRegression(SklearnLogisticRegression):
         l1_ratio=0.0,
         dual=False,
         tol=0.0001,
-        fit_intercept=True,
+        fit_intercept=False,
         intercept_scaling=1,
         class_weight=None,
         random_state=None,
@@ -42,17 +47,26 @@ class LogisticRegression(SklearnLogisticRegression):
         self.max_iter = max_iter
         self.C = C
         self.l1_ratio = l1_ratio
+        self.tol = tol
+
+        if fit_intercept:
+            raise ValueError("fit_intercept=True is not supported yet in this implementation.")
+        
 
     def predict_proba(self, X, kernel: str = "fused_parallel"):
 
-        if kernel not in ["fused_parallel", "parallel"]:
-            raise ValueError("Invalid kernel specified. Supported kernels are 'fused_parallel' and 'parallel'.")
+        if kernel not in ["fused_parallel", "blas"]:
+            raise ValueError("Invalid kernel specified. Supported kernels are 'fused_parallel' and 'blas'.")
         
         if not hasattr(self, "coef_"):
             raise ValueError("This LogisticRegression instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
         
-        if len(self.coef_) == 1:
-            return rust_logistic.binary_predict_proba(X, self.coef_, kernel)
+        if self.coef_.ndim == 1:
+            X = X.astype(np.float32, order='C', copy=False)
+            return rust_logistic.binary_predict_proba(X, self.coef_.astype(np.float32, order='C', copy=False), kernel=kernel)
+
+        else:
+            raise ValueError("Multiclass prediction is not supported in this implementation.")
     
 
     def predict(self, X, kernel: str = "fused_parallel"):
@@ -89,14 +103,15 @@ class LogisticRegression(SklearnLogisticRegression):
                         raise ValueError("Number of samples in sample_weight must be the same as in y.")
                     sample_weight = sample_weight.astype(dtype=np.float32, order='C', copy=False)
                 
-                self.coef_ = rust_logistic.binary_fit(
-                    X,
-                    y,
-                    l1_reg=1.0 / self.C * self.l1_ratio,
-                    l2_reg=1.0 / self.C * (1 - self.l1_ratio),
-                    max_iters=self.max_iter,
-                    m=10,
-                    sample_weights=sample_weight
-                )
+                if self.solver == "lbfgs":
+                    self.coef_ = _FIT[self.solver](
+                        X,
+                        y,
+                        l1_reg=1.0 / self.C * self.l1_ratio,
+                        l2_reg=1.0 / self.C * (1 - self.l1_ratio),
+                        max_iters=self.max_iter,
+                        m=10,
+                        tolerance=self.tol,
+                        sample_weights=sample_weight
+                    )
                 
-    

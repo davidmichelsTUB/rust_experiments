@@ -79,7 +79,7 @@ pub fn compute_loss(
 }
 
 // Gradient has its own kernel
-pub fn compute_gradient(
+pub fn compute_new_gradient(
     x: ArrayView2<f32>,
     y: ArrayView1<f32>,
     w: ArrayView1<f32>,

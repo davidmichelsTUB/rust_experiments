@@ -1,8 +1,8 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 
-mod _binary_logstic;
-pub use _binary_logstic::{compute_gradient, compute_loss, predict_proba_impl};
+mod _binary_logistic;
+pub use _binary_logistic::{compute_new_gradient, compute_loss, predict_proba_impl};
 
 mod solvers;
 use solvers::argmin::lbfgs;
@@ -18,7 +18,7 @@ fn binary_predict_proba<'py>(
 }
 
 #[pyfunction]
-#[pyo3(signature = (x, y, l1_reg, l2_reg, max_iters, m, sample_weights=None))]
+#[pyo3(signature = (x, y, l1_reg, l2_reg, max_iters, m, tolerance, sample_weights=None))]
 fn binary_lbfgs_fit<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
@@ -27,6 +27,7 @@ fn binary_lbfgs_fit<'py>(
     l2_reg: f32,
     max_iters: u64,
     m: usize,
+    tolerance: f32,
     sample_weights: Option<PyReadonlyArray1<f32>>,
 ) -> PyResult<Bound<'py, PyArray1<f32>>> {
     let sample_weights_view = match sample_weights {
@@ -40,6 +41,7 @@ fn binary_lbfgs_fit<'py>(
         l2_reg,
         max_iters,
         m,
+        tolerance,
         sample_weights_view,
     )
     .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
