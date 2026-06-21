@@ -1,12 +1,10 @@
-use ndarray::{Array, Array1, ArrayView1, ArrayView2, Axis};
 use ndarray::parallel::prelude::*;
-
+use ndarray::{Array, Array1, ArrayView1, ArrayView2, Axis};
 
 #[inline(always)]
 fn sigmoid(z: f32) -> f32 {
-    1.0/ (1.0 + (-z).exp())
+    1.0 / (1.0 + (-z).exp())
 }
-
 
 // Variant 1: Use BLAS dgemv + mapv (two passes)
 fn dot_sigmoid_blas(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
@@ -19,7 +17,7 @@ fn dot_sigmoid_fused_parallel(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<
         x.axis_iter(Axis(0))
             .into_par_iter()
             .map(|row| sigmoid(row.dot(&w)))
-            .collect()
+            .collect(),
     )
 }
 
@@ -34,33 +32,117 @@ pub fn predict_proba_impl(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) 
 
 ////////////////////////////////////////////////////////////////////////
 
-
 // Loss has its own kernel
-pub fn compute_loss(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f32>, l1_reg: f32, l2_reg: f32) -> f32 {
-    let (log_loss, reg) = rayon::join(|| {
-        x.axis_iter(Axis(0)).into_par_iter().zip(y.as_slice().unwrap().into_par_iter()).map(|(row, label)| {
-            let pred = sigmoid(row.dot(&w));
-            -pred.ln() * *label - (1.0 - pred).ln()* (1.0 - *label)
-        }).sum::<f32>()
-    }, || {
-        w.mapv(|wi| l1_reg * wi.abs() + l2_reg * wi * wi).sum()
-    });
-    (log_loss + reg)/ (x.nrows() as f32)
+pub fn compute_loss(
+    x: ArrayView2<f32>,
+    y: ArrayView1<f32>,
+    w: ArrayView1<f32>,
+    l1_reg: f32,
+    l2_reg: f32,
+    sample_weights: Option<ArrayView1<f32>>,
+) -> f32 {
+    let (log_loss, reg) =  rayon::join(
+            || {
+                match sample_weights {
+                    Some(weights) => {
+                x.axis_iter(Axis(0))
+                    .into_par_iter()
+                    .zip(y.as_slice().unwrap().into_par_iter())
+                    .zip(weights.as_slice().unwrap().into_par_iter())
+                    .map(|((row, label), weight)| {
+                        let pred = sigmoid(row.dot(&w));
+                        (-pred.ln() * *label - (1.0 - pred).ln() * (1.0 - *label)) * *weight
+                    })
+                    .sum::<f32>()
+            }
+            None => {
+                x.axis_iter(Axis(0))
+                    .into_par_iter()
+                    .zip(y.as_slice().unwrap().into_par_iter())
+                    .map(|(row, label)| {
+                        let pred = sigmoid(row.dot(&w));
+                        -pred.ln() * *label - (1.0 - pred).ln() * (1.0 - *label)
+                    })
+                    .sum::<f32>()
+            }
+                }
+            },
+            || {
+                w.as_slice()
+                    .unwrap()
+                    .iter()
+                    .map(|wi| l1_reg * wi.abs() + l2_reg * wi * wi)
+                    .sum::<f32>()
+            },
+        );
+    (log_loss + reg) / (x.nrows() as f32)
 }
 
 // Gradient has its own kernel
-pub fn compute_gradient(x: ArrayView2<f32>, y: ArrayView1<f32>, w: ArrayView1<f32>, l1_reg: f32, l2_reg: f32) -> Array1<f32> {
-    let (loss_grad, reg_grad) = rayon::join(|| {
-        x.axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(y.as_slice().unwrap().into_par_iter())
-            .map(|(row, label)| row.mapv(|xi| xi * (sigmoid(row.dot(&w)) - *label)))
-            .reduce(|| Array1::zeros(w.len()), |a, b| a + b)
-    }, || {
-        w.mapv(|wi| l1_reg * wi.signum() + 2.0 * l2_reg * wi)
-    });
-    (loss_grad + reg_grad) / (x.nrows() as f32)
+pub fn compute_gradient(
+    x: ArrayView2<f32>,
+    y: ArrayView1<f32>,
+    w: ArrayView1<f32>,
+    l1_reg: f32,
+    l2_reg: f32,
+    sample_weights: Option<ArrayView1<f32>>,
+) -> Array1<f32> {
+    let (loss_grad, reg_grad) = rayon::join(
+        || {
+            match sample_weights {
+                Some(weights) => {
+                    x.axis_iter(Axis(0))
+                        .into_par_iter()
+                        .enumerate()
+                        .fold(
+                            || Array1::<f32>::zeros(w.len()),
+                            |mut acc, (i, row)| {
+                                let z = row.dot(&w);
+                                let diff = sigmoid(z) - y[i];
+                                let weight = weights[i];
+
+                                for (j, xi) in row.iter().enumerate() {
+                                    acc[j] += weight * xi * diff;
+                                }
+
+                                acc
+                            },
+                        )
+                        .reduce(
+                            || Array1::<f32>::zeros(w.len()),
+                            |a, b| a + b,
+                        )
+                }
+                None => {
+                    x.axis_iter(Axis(0))
+                        .into_par_iter()
+                        .enumerate()
+                        .fold(
+                            || Array1::<f32>::zeros(w.len()),
+                            |mut acc, (i, row)| {
+                                let z = row.dot(&w);
+                                let diff = sigmoid(z) - y[i];
+
+                                for (j, xi) in row.iter().enumerate() {
+                                    acc[j] += xi * diff;
+                                }
+
+                                acc
+                            },
+                        )
+                        .reduce(
+                            || Array1::<f32>::zeros(w.len()),
+                            |a, b| a + b,
+                        )
+                }
+            }
+        },
+        || {
+            w.iter()
+                .map(|&wi| l1_reg * wi.signum() + 2.0 * l2_reg * wi)
+                .collect::<Array1<f32>>()
+        },
+    );
+
+    (loss_grad + reg_grad) / x.nrows() as f32
 }
-
-
-
