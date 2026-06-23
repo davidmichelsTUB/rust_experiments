@@ -48,9 +48,8 @@ class LogisticRegression(SklearnLogisticRegression):
         self.C = C
         self.l1_ratio = l1_ratio
         self.tol = tol
+        self.fit_intercept = fit_intercept
 
-        if fit_intercept:
-            raise ValueError("fit_intercept=True is not supported yet in this implementation.")
         
 
     def predict_proba(self, X, kernel: str = "fused_parallel"):
@@ -63,7 +62,7 @@ class LogisticRegression(SklearnLogisticRegression):
         
         if self.coef_.ndim == 1:
             X = X.astype(np.float32, order='C', copy=False)
-            return rust_logistic.binary_predict_proba(X, self.coef_.astype(np.float32, order='C', copy=False), kernel=kernel)
+            return rust_logistic.binary_predict_proba(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False), kernel=kernel)
 
         else:
             raise ValueError("Multiclass prediction is not supported in this implementation.")
@@ -105,7 +104,7 @@ class LogisticRegression(SklearnLogisticRegression):
                 
                 if self.solver == "lbfgs":
                     self.coef_ = _FIT[self.solver](
-                        X,
+                        X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))),
                         y,
                         l1_reg=1.0 / self.C * self.l1_ratio,
                         l2_reg=1.0 / self.C * (1 - self.l1_ratio),

@@ -6,6 +6,16 @@ fn sigmoid(z: f32) -> f32 {
     1.0 / (1.0 + (-z).exp())
 }
 
+// log(1 + exp(z)), evaluated in a numerically stable way:
+//   max(z, 0) + log(1 + exp(-|z|))
+// Never overflows/underflows for finite z, and ln_1p keeps precision
+// for small arguments. Used for the loss instead of routing through
+// sigmoid -> ln, which produces -inf once sigmoid saturates to 0/1.
+#[inline(always)]
+fn softplus(z: f32) -> f32 {
+    z.max(0.0) + (-z.abs()).exp().ln_1p()
+}
+
 // Variant 1: Use BLAS dgemv + mapv (two passes)
 fn dot_sigmoid_blas(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
     x.dot(&w).mapv_into(sigmoid)
@@ -50,8 +60,8 @@ pub fn compute_loss(
                     .zip(y.as_slice().unwrap().into_par_iter())
                     .zip(weights.as_slice().unwrap().into_par_iter())
                     .map(|((row, label), weight)| {
-                        let pred = sigmoid(row.dot(&w));
-                        (-pred.ln() * *label - (1.0 - pred).ln() * (1.0 - *label)) * *weight
+                        let z = row.dot(&w);
+                        (softplus(z) - *label * z) * *weight
                     })
                     .sum::<f32>()
             }
@@ -60,8 +70,8 @@ pub fn compute_loss(
                     .into_par_iter()
                     .zip(y.as_slice().unwrap().into_par_iter())
                     .map(|(row, label)| {
-                        let pred = sigmoid(row.dot(&w));
-                        -pred.ln() * *label - (1.0 - pred).ln() * (1.0 - *label)
+                        let z = row.dot(&w);
+                        softplus(z) - *label * z
                     })
                     .sum::<f32>()
             }
