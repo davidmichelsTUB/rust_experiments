@@ -1,5 +1,5 @@
 use ndarray::{Array2, Axis};
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
+use numpy::{IntoPyArray, PyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -7,28 +7,28 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-pub fn csr_to_dense(
-    values: &[usize],
-    indices: &[usize],
-    indptr: &[usize],
-    n_cols: usize,
-) -> Array2<i32> {
-    let n_rows = indptr.len() - 1;
-    let mut dense = Array2::<i32>::zeros((n_rows, n_cols));
+// pub fn csr_to_dense(
+//     values: &[usize],
+//     indices: &[usize],
+//     indptr: &[usize],
+//     n_cols: usize,
+// ) -> Array2<i32> {
+//     let n_rows = indptr.len() - 1;
+//     let mut dense = Array2::<i32>::zeros((n_rows, n_cols));
 
-    let buf = dense
-        .as_slice_mut()
-        .expect("freshly created Array2 is contiguous");
+//     let buf = dense
+//         .as_slice_mut()
+//         .expect("freshly created Array2 is contiguous");
 
-    for row in 0..n_rows {
-        let base = row * n_cols;
-        for k in indptr[row]..indptr[row + 1] {
-            buf[base + indices[k]] = values[k] as i32;
-        }
-    }
+//     for row in 0..n_rows {
+//         let base = row * n_cols;
+//         for k in indptr[row]..indptr[row + 1] {
+//             buf[base + indices[k]] = values[k] as i32;
+//         }
+//     }
 
-    dense
-}
+//     dense
+// }
 
 fn sort_vocab_lexi_inplace(vocabulary: &mut HashMap<String, usize>, j_indices: &mut Vec<usize>) {
     let n = vocabulary.len();
@@ -86,7 +86,6 @@ pub fn compute_count_vectorizer_fit(
                 .entry(*vocabulary.get(&token).unwrap())
                 .or_insert(0) += 1;
         }
-        println!("{:?}", feature_counter);
         for (&col, &count) in feature_counter.iter() {
             j_indices.push(col);
             values.push(count);
@@ -145,20 +144,20 @@ pub fn count_vectorize_transform(
     let tokenizer = Regex::new(&token_pattern)
         .map_err(|e| PyValueError::new_err(format!("invalid token_pattern: {e}")))?;
 
-    let result =
-        py.detach(|| compute_count_vectorizer_transform(&corpus, &vocabulary, &stopwords, &tokenizer, n_chunks));
+    let result = py.detach(|| {
+        compute_count_vectorizer_transform(&corpus, &vocabulary, &stopwords, &tokenizer, n_chunks)
+    });
     Ok(Py::from(result.into_pyarray(py).to_owned()))
 }
 
 #[pyfunction]
 #[pyo3(signature = (corpus, stopwords, token_pattern = r"(?u)\b\w\w+\b".to_string(), n_chunks = 1))]
 pub fn count_vectorize_fit(
-    py: Python<'_>,
     corpus: Vec<String>,
     stopwords: HashSet<String>,
     token_pattern: String,
     n_chunks: usize,
-) -> PyResult<(HashMap<String, usize>, Py<PyArray2<i32>>)> {
+) -> PyResult<HashMap<String, usize>> {
     if n_chunks == 0 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "n_chunks must be >= 1",
@@ -167,12 +166,7 @@ pub fn count_vectorize_fit(
     let tokenizer = Regex::new(&token_pattern)
         .map_err(|e| PyValueError::new_err(format!("invalid token_pattern: {e}")))?;
 
-    let (vocabulary, values, j_indices, indptr) =
-        compute_count_vectorizer_fit(corpus, stopwords, tokenizer);
+    let (vocabulary, _, _, _) = compute_count_vectorizer_fit(corpus, stopwords, tokenizer);
 
-    let x = csr_to_dense(&values, &j_indices, &indptr, vocabulary.len())
-        .into_pyarray(py)
-        .to_owned();
-
-    Ok((vocabulary, Py::from(x)))
+    Ok(vocabulary)
 }

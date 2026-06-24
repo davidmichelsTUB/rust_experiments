@@ -25,6 +25,11 @@ features = ["pyo3/extension-module"]
 dev = [
     "maturin>=1.13.3",
 ]
+[tool.pytest.ini_options]
+pythonpath = ["."]
+log_cli = true
+log_cli_level = "DEBUG"
+
 [tool.uv]
 cache-keys = [
     { file = "Cargo.toml" },

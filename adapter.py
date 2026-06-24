@@ -78,8 +78,9 @@ class RustyMinMaxScaler(_SKMinMaxScaler):
             out = minmax_scale_transform(X_arr, data_min, data_max, self._n_chunks(X_arr))
         except Exception as e:
             logger.warning(f"Rust minmax_scale_transform failed, falling back: {e}")
-        return super().transform(X)
+            return super().transform(X)
         t2 = time.perf_counter()
+        logger.debug("using rust")
         print(f"convert={1000*(t1-t0):.3f}ms  rust={1000*(t2-t1):.3f}ms")
         return out
 
@@ -102,11 +103,15 @@ class RustyCountVectorizer(_SKCountVectorizer):
             return set()
         return set(sw)
 
-    def fit(self, raw_documents, y=None):
+    def fit(self, raw_documents):
         if not HAVE_RUST or count_vectorize_fit is None:
-            return super().fit(raw_documents, y)
+            logger.debug(f"Rust count_vectorizer failed, falling back")
+            return super().fit(raw_documents)
+        logger.debug("Using RustyCountVectorizer fit")
+
+
         corpus = list(raw_documents)
-        vocab, _ = count_vectorize_fit(
+        vocab = count_vectorize_fit(
             corpus, self._stopwords_set(), self.token_pattern, self._n_chunks(corpus)
         )
         self.vocabulary_ = vocab
@@ -114,7 +119,10 @@ class RustyCountVectorizer(_SKCountVectorizer):
 
     def transform(self, raw_documents):
         if not HAVE_RUST or count_vectorize_transform is None:
+            logger.debug(f"Rust count_vectorizer failed, falling back")
             return super().transform(raw_documents)
+        logger.debug("Using RustyCountVectorizer transform")
+
         corpus = list(raw_documents)
         return count_vectorize_transform(
             corpus, self.vocabulary_, self._stopwords_set(),
@@ -122,4 +130,4 @@ class RustyCountVectorizer(_SKCountVectorizer):
         )
 
     def fit_transform(self, raw_documents, y=None):
-        return self.fit(raw_documents, y).transform(raw_documents)
+        return self.fit(raw_documents).transform(raw_documents)

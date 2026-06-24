@@ -16,10 +16,4 @@ fn main() {
         countvectorizer::compute_count_vectorizer_fit(corpus, stopwords, tokenizer);
 
     println!("{:?}", vocabulary);
-
-    println!(
-        "{:?}",
-        countvectorizer::csr_to_dense(&values, &j_indices, &indptr, vocabulary.len())
-    );
 }
-
