@@ -1,36 +1,25 @@
-use ndarray::Array2;
-use ndarray_rand::RandomExt;
-use ndarray_rand::rand_distr::Uniform;
-use rayon::prelude::*;
-
-use std::time::Instant;
+mod countvectorizer;
 mod pariter;
+use regex::Regex;
+use std::collections::HashSet;
 
 fn main() {
-    let x = Array2::<f32>::random((10_000_000, 5), Uniform::new(4., 10.).unwrap());
-    let x_view = x.view();
-    const N_CHUNKS: usize = 255;
+    let corpus = vec![
+        "This is the first document.".to_string(),
+        "This document is the second document.".to_string(),
+        "And this is the third one.".to_string(),
+        "Is this the first document?".to_string(),
+    ];
+    let tokenizer = Regex::new(r"\b\w\w+\b").unwrap();
+    let stopwords: HashSet<String> = HashSet::new();
+    let (vocabulary, values, j_indices, indptr) =
+        countvectorizer::compute_count_vectorizer_fit(corpus, stopwords, tokenizer);
 
-    let start = Instant::now();
-    let (min_vals, max_vals) = pariter::compute_minmax_scale_fit(x_view, N_CHUNKS);
-    println!("{:?}", (&min_vals, &max_vals));
+    println!("{:?}", vocabulary);
 
-    let x_transformed =
-        pariter::compute_minmax_scale_transform(x_view, min_vals.view(), max_vals.view(), N_CHUNKS);
-    let (min_vals_test, max_vals_test) =
-        pariter::compute_minmax_scale_fit(x_transformed.view(), N_CHUNKS);
-
-    println!("{:?}", (min_vals_test, max_vals_test));
-    let duration = start.elapsed();
-    println!("Time{duration:?}")
+    println!(
+        "{:?}",
+        countvectorizer::csr_to_dense(&values, &j_indices, &indptr, vocabulary.len())
+    );
 }
 
-// fn main() {
-//     let numbers: Vec<i32> = (1..100).collect();
-//     numbers
-//         .clone()
-//         .into_par_iter()
-//         .for_each(|n| print!(" {:?}", n));
-//     println!("\n\n\n");
-//     numbers.clone().iter().for_each(|n| print!(" {:?}", n));
-// }

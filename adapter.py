@@ -2,6 +2,8 @@ from __future__ import annotations
 import os
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler as _SKMinMaxScaler
+from sklearn.feature_extraction.text import CountVectorizer as _SKCountVectorizer
+
 from sklearn.utils.validation import check_is_fitted
 import logging
 import time
@@ -19,6 +21,8 @@ except ImportError as e:
 
 minmax_scale_fit      = getattr(_native, "minmax_scale_fit",      None)
 minmax_scale_transform = getattr(_native, "minmax_scale_transform", None)
+count_vectorize_fit       = getattr(_native, "count_vectorize_fit",       None)
+count_vectorize_transform = getattr(_native, "count_vectorize_transform", None)
 
 
 class RustyMinMaxScaler(_SKMinMaxScaler):
@@ -74,10 +78,48 @@ class RustyMinMaxScaler(_SKMinMaxScaler):
             out = minmax_scale_transform(X_arr, data_min, data_max, self._n_chunks(X_arr))
         except Exception as e:
             logger.warning(f"Rust minmax_scale_transform failed, falling back: {e}")
-            return super().transform(X)
+        return super().transform(X)
         t2 = time.perf_counter()
         print(f"convert={1000*(t1-t0):.3f}ms  rust={1000*(t2-t1):.3f}ms")
         return out
 
     def fit_transform(self, X, y=None, **fit_params):
         return self.fit(X, y, **fit_params).transform(X)
+
+
+class RustyCountVectorizer(_SKCountVectorizer):
+    def __init__(self, n_jobs=None, **kwargs):
+        super().__init__(**kwargs)
+        cores = os.cpu_count()
+        self.n_jobs = cores if n_jobs is None else min(n_jobs, cores)
+
+    def _n_chunks(self, corpus):
+        return max(1, min(len(corpus) // MIN_BLOCK_LEN, self.n_jobs))
+
+    def _stopwords_set(self):
+        sw = self.stop_words
+        if sw is None or sw == "english":
+            return set()
+        return set(sw)
+
+    def fit(self, raw_documents, y=None):
+        if not HAVE_RUST or count_vectorize_fit is None:
+            return super().fit(raw_documents, y)
+        corpus = list(raw_documents)
+        vocab, _ = count_vectorize_fit(
+            corpus, self._stopwords_set(), self.token_pattern, self._n_chunks(corpus)
+        )
+        self.vocabulary_ = vocab
+        return self
+
+    def transform(self, raw_documents):
+        if not HAVE_RUST or count_vectorize_transform is None:
+            return super().transform(raw_documents)
+        corpus = list(raw_documents)
+        return count_vectorize_transform(
+            corpus, self.vocabulary_, self._stopwords_set(),
+            self.token_pattern, self._n_chunks(corpus)
+        )
+
+    def fit_transform(self, raw_documents, y=None):
+        return self.fit(raw_documents, y).transform(raw_documents)

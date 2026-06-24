@@ -93,40 +93,6 @@ pub fn compute_minmax_scale_fit(
     return (ndarray::Array1::from(min), ndarray::Array1::from(max));
 }
 
-// pub fn compute_minmax_scale_transform(
-//     x: ndarray::ArrayView2<f32>,
-//     min: ndarray::ArrayView1<f32>,
-//     max: ndarray::ArrayView1<f32>,
-//     n_chunks: usize,
-// ) -> ndarray::Array2<f32> {
-//     let (n_rows, n_cols) = x.dim();
-//     let chunk_size = (n_rows / n_chunks).max(1);
-//     let mut out = ndarray::Array2::<f32>::zeros((n_rows, n_cols));
-
-//     let inv_range: Vec<f32> = min
-//         .iter()
-//         .zip(max.iter())
-//         .map(|(&lo, &hi)| {
-//             let range = hi - lo;
-//             if range == 0.0 { 0.0 } else { 1.0 / range }
-//         })
-//         .collect();
-
-//     out.axis_chunks_iter_mut(Axis(0), chunk_size)
-//         .into_par_iter()
-//         .zip(x.axis_chunks_iter(Axis(0), chunk_size).into_par_iter())
-//         .for_each(|(mut out_chunk, in_chunk)| {
-//             for (mut out_row, in_row) in out_chunk.rows_mut().into_iter().zip(in_chunk.rows()) {
-//                 for col_idx in 0..n_cols {
-//                     let scaled = (in_row[col_idx] - min[col_idx]) * inv_range[col_idx];
-//                     out_row[col_idx] = scaled;
-//                 }
-//             }
-//         });
-
-//     out
-// }
-
 #[pyfunction]
 #[pyo3(signature = (x, n_chunks))]
 pub fn minmax_scale_fit(
