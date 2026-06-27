@@ -403,6 +403,7 @@ dependencies = [
  "pyo3",
  "rayon",
  "regex",
+ "rustc-hash",
  "stop-words",
 ]
 

@@ -6,42 +6,43 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent))
 
 from sklearn.feature_extraction.text import CountVectorizer as SKCountVectorizer
-from adapter import RustyCountVectorizer, HAVE_RUST
+from sklearn.datasets import fetch_20newsgroups
+from adapter import RustyCountVectorizer
 import time
 import os
 import pandas as pd
 from typing import Callable
+
+
 N_REPEATS = 5
 N_CHUNKS_LIST = [1, os.cpu_count()]
 
-
-def load_corpus(path: Path) -> list[str]:
-    df = pd.read_csv(path, usecols=["text"])
-    return df["text"].dropna().tolist()
+def load_corpus() -> list[str]:
+    ds = fetch_20newsgroups(data_home="data")
+    
+    return ds.get("data")
 
 
 def run_trials(
-    factory: Callable, corpus: list[str], n: int
+    vectorizer: Callable, corpus: list[str], n: int
 ) -> list[tuple[float, float]]:
     results = []
     for _ in range(n):
-        cv = factory()
-
+        cv = vectorizer()
         t0 = time.perf_counter()
         cv.fit(corpus)
         fit_ms = (time.perf_counter() - t0) * 1000
-
         t0 = time.perf_counter()
         cv.transform(corpus)
         transform_ms = (time.perf_counter() - t0) * 1000
-
         results.append((fit_ms, transform_ms))
     return results
 
 
 def main() -> None:
     print("Loading corpus…")
-    corpus = load_corpus(HERE.parent / "data" / "news.csv")
+    corpus = load_corpus()
+    corpus = corpus + corpus + corpus + corpus
     print(f"Loaded {len(corpus):,} documents")
 
     out_path = HERE / "results" / "countvectorizer.csv"
@@ -57,14 +58,14 @@ def main() -> None:
             print(f"  run {run}  fit={fit_ms:8.2f}ms  transform={transform_ms:8.2f}ms")
             f.write(f"sklearn,1,{run},{fit_ms:.3f},{transform_ms:.3f}\n")
 
-        if HAVE_RUST:
-            for n_chunks in N_CHUNKS_LIST:
-                print(f"\nrust chunks={n_chunks}  n={len(corpus):,}")
-                for run, (fit_ms, transform_ms) in enumerate(
-                    run_trials(lambda c=n_chunks: RustyCountVectorizer(n_jobs=c), corpus, N_REPEATS), 1
-                ):
-                    print(f"  run {run}  fit={fit_ms:8.2f}ms  transform={transform_ms:8.2f}ms")
-                    f.write(f"rust,{n_chunks},{run},{fit_ms:.3f},{transform_ms:.3f}\n")
+
+        for n_chunks in N_CHUNKS_LIST:
+            print(f"\nrust chunks={n_chunks}  n={len(corpus):,}")
+            for run, (fit_ms, transform_ms) in enumerate(
+                run_trials(lambda c=n_chunks: RustyCountVectorizer(n_jobs=c), corpus, N_REPEATS), 1
+            ):
+                print(f"  run {run}  fit={fit_ms:8.2f}ms  transform={transform_ms:8.2f}ms")
+                f.write(f"rust,{n_chunks},{run},{fit_ms:.3f},{transform_ms:.3f}\n")
 
     print(f"\nResults written to {out_path}")
 

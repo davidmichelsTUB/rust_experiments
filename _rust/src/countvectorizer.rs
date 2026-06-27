@@ -4,33 +4,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use regex::Regex;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-// pub fn csr_to_dense(
-//     values: &[usize],
-//     indices: &[usize],
-//     indptr: &[usize],
-//     n_cols: usize,
-// ) -> Array2<i32> {
-//     let n_rows = indptr.len() - 1;
-//     let mut dense = Array2::<i32>::zeros((n_rows, n_cols));
-
-//     let buf = dense
-//         .as_slice_mut()
-//         .expect("freshly created Array2 is contiguous");
-
-//     for row in 0..n_rows {
-//         let base = row * n_cols;
-//         for k in indptr[row]..indptr[row + 1] {
-//             buf[base + indices[k]] = values[k] as i32;
-//         }
-//     }
-
-//     dense
-// }
-
-fn sort_vocab_lexi_inplace(vocabulary: &mut HashMap<String, usize>, j_indices: &mut Vec<usize>) {
+fn sort_vocab_lexi_inplace(vocabulary: &mut FxHashMap<String, usize>, j_indices: &mut Vec<usize>) {
     let n = vocabulary.len();
     let mut sorted: Vec<(&String, usize)> =
         vocabulary.iter().map(|(term, &old)| (term, old)).collect();
@@ -40,66 +16,101 @@ fn sort_vocab_lexi_inplace(vocabulary: &mut HashMap<String, usize>, j_indices: &
     for (new_index, &(_, old_index)) in sorted.iter().enumerate() {
         remap[old_index] = new_index;
     }
-    // `sorted` and its borrow of `vocabulary` end here.
-
-    // 3. Rewrite each vocabulary value to its new index. O(V).
     for idx in vocabulary.values_mut() {
         *idx = remap[*idx];
     }
-
-    // 4. Relabel every stored column. O(nnz), plain array lookups.
     for col in j_indices.iter_mut() {
         *col = remap[*col];
     }
 }
 
+struct Partial {
+    vocab: FxHashMap<String, usize>,
+    values: Vec<usize>,
+    j_indices: Vec<usize>,
+    indptr: Vec<usize>,
+}
 pub fn compute_count_vectorizer_fit(
     corpus: Vec<String>,
-    stopwords: HashSet<String>,
+    stopwords: FxHashSet<String>,
     tokenizer: regex::Regex,
-) -> (HashMap<String, usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
-    let mut vocabulary: HashMap<String, usize, _> = HashMap::new();
-    // for reference read https://de.wikipedia.org/wiki/Compressed_Row_Storage
-    let mut values: Vec<usize> = Vec::new();
-    let mut j_indices: Vec<usize> = Vec::new();
-    let mut indptr: Vec<usize> = Vec::with_capacity(corpus.len() + 1);
-    indptr.push(0);
-    for text in corpus.iter() {
-        // one feature counter per document
-        let mut feature_counter: HashMap<usize, usize> = HashMap::new();
-        for m in tokenizer.find_iter(text) {
-            // to lowercase transforms to String
-            let token = m.as_str().to_lowercase();
-            if stopwords.contains(&token) {
-                continue;
-            };
-            let value = vocabulary.get(&token);
-            match value {
-                Some(_) => {}
-                None => {
-                    //step for inserting into vocabulary
-                    vocabulary.insert(token.clone(), vocabulary.len());
+    n_chunks: usize,
+) -> (FxHashMap<String, usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
+    let chunk_size = (corpus.len() / n_chunks).max(1);
+    // for reduction
+    let identity = || Partial {
+        vocab: FxHashMap::default(),
+        values: vec![],
+        j_indices: vec![],
+        indptr: vec![0],
+    };
+
+    let mut result = corpus
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            let mut vocab: FxHashMap<String, usize> = FxHashMap::default();
+
+            let mut values: Vec<usize> = Vec::new();
+            let mut j_indices: Vec<usize> = Vec::new();
+            let mut indptr: Vec<usize> = Vec::with_capacity(chunk.len() + 1);
+            indptr.push(0);
+
+            for text in chunk.iter() {
+                let mut feature_counter: FxHashMap<usize, usize> = FxHashMap::default();
+                for m in tokenizer.find_iter(text) {
+                    // to lowercase transforms to String from str
+                    let token = m.as_str().to_lowercase();
+                    if stopwords.contains(&token) {
+                        continue;
+                    };
+                    let idx = match vocab.get(&token).copied() {
+                        Some(i) => i,
+                        None => {
+                            let i = vocab.len();
+                            vocab.insert(token, i);
+                            i
+                        }
+                    };
+
+                    // we need to own the number that our vocabulary returns
+                    *feature_counter.entry(idx).or_insert(0) += 1;
                 }
-            };
-            // we need to own the number that our vocabulary returns
-            *feature_counter
-                .entry(*vocabulary.get(&token).unwrap())
-                .or_insert(0) += 1;
-        }
-        for (&col, &count) in feature_counter.iter() {
-            j_indices.push(col);
-            values.push(count);
-        }
-        indptr.push(j_indices.len());
-    }
-    sort_vocab_lexi_inplace(&mut vocabulary, &mut j_indices);
-    (vocabulary, values, j_indices, indptr)
+                for (&col, &count) in feature_counter.iter() {
+                    j_indices.push(col);
+                    values.push(count);
+                }
+                indptr.push(j_indices.len());
+            }
+            Partial {
+                vocab,
+                values,
+                j_indices,
+                indptr,
+            }
+        })
+        .reduce(identity, |mut a, b| {
+            let mut remap = vec![0 as usize; b.vocab.len()];
+            for (token, &local) in b.vocab.iter() {
+                let next = a.vocab.len();
+                let global = *a.vocab.entry(token.clone()).or_insert(next);
+                remap[local] = global;
+            }
+            let offset = a.j_indices.len();
+            a.values.extend(b.values);
+            a.j_indices.extend(b.j_indices.iter().map(|&c| remap[c]));
+            a.indptr.extend(b.indptr[1..].iter().map(|&p| p + offset));
+            a
+        });
+
+    sort_vocab_lexi_inplace(&mut result.vocab, &mut result.j_indices);
+
+    (result.vocab, result.values, result.j_indices, result.indptr)
 }
 
 pub fn compute_count_vectorizer_transform(
     corpus: &[String],
-    vocabulary: &HashMap<String, usize>,
-    stopwords: &HashSet<String>,
+    vocabulary: &FxHashMap<String, usize>,
+    stopwords: &FxHashSet<String>,
     tokenizer: &Regex,
     n_chunks: usize,
 ) -> Array2<i32> {
@@ -133,8 +144,8 @@ pub fn compute_count_vectorizer_transform(
 pub fn count_vectorize_transform(
     py: Python<'_>,
     corpus: Vec<String>,
-    vocabulary: HashMap<String, usize>,
-    stopwords: HashSet<String>,
+    vocabulary: FxHashMap<String, usize>,
+    stopwords: FxHashSet<String>,
     token_pattern: String,
     n_chunks: usize,
 ) -> PyResult<Py<PyArray2<i32>>> {
@@ -154,10 +165,10 @@ pub fn count_vectorize_transform(
 #[pyo3(signature = (corpus, stopwords, token_pattern = r"(?u)\b\w\w+\b".to_string(), n_chunks = 1))]
 pub fn count_vectorize_fit(
     corpus: Vec<String>,
-    stopwords: HashSet<String>,
+    stopwords: FxHashSet<String>,
     token_pattern: String,
     n_chunks: usize,
-) -> PyResult<HashMap<String, usize>> {
+) -> PyResult<FxHashMap<String, usize>> {
     if n_chunks == 0 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "n_chunks must be >= 1",
@@ -166,7 +177,8 @@ pub fn count_vectorize_fit(
     let tokenizer = Regex::new(&token_pattern)
         .map_err(|e| PyValueError::new_err(format!("invalid token_pattern: {e}")))?;
 
-    let (vocabulary, _, _, _) = compute_count_vectorizer_fit(corpus, stopwords, tokenizer);
+    let (vocabulary, _, _, _) =
+        compute_count_vectorizer_fit(corpus, stopwords, tokenizer, n_chunks);
 
     Ok(vocabulary)
 }
