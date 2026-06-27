@@ -53,7 +53,7 @@ pub fn compute_loss(
     l1_reg: f32,
     l2_reg: f32,
     sample_weights_sum: f32,
-    sample_weights: Option<ArrayView1<f32>>
+    sample_weights: Option<ArrayView1<f32>>,
 ) -> f32 {
     let (log_loss, reg) =  rayon::join(
             || {
@@ -85,12 +85,11 @@ pub fn compute_loss(
                 w.as_slice()
                     .unwrap()
                     .iter()
-                    .map(|wi| l1_reg * wi.abs() + l2_reg * wi * wi * 0.5)
+                    .map(|wi| l1_reg * wi.abs() + 0.5*l2_reg * wi * wi)
                     .sum::<f32>()
             },
         );
-
-    log_loss / sample_weights_sum + reg
+    (log_loss + reg) / sample_weights_sum
 }
 
 // Gradient has its own kernel
@@ -172,5 +171,5 @@ pub fn compute_new_gradient(
         },
     );
 
-    loss_grad / sample_weights_sum + reg_grad
+    (loss_grad + reg_grad) / sample_weights_sum
 }
