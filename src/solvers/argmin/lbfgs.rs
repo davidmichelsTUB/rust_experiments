@@ -16,7 +16,10 @@ impl<'a> CostFunction for LogisticProblem<'a> {
     type Param = Array1<f32>;
     type Output = f32;
     fn cost(&self, w: &Array1<f32>) -> Result<f32, argmin::core::Error> {
-        Ok(compute_loss(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, self.sample_weights))
+        Ok(compute_loss(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+            Some(weights) => weights.sum() as f32,
+            None => self.x.nrows() as f32,
+        }, self.sample_weights))
     }
 }
 
@@ -24,7 +27,10 @@ impl<'a> Gradient for LogisticProblem<'a> {
     type Param = Array1<f32>;
     type Gradient = Array1<f32>;
     fn gradient(&self, w: &Array1<f32>) -> Result<Array1<f32>, argmin::core::Error> {
-        Ok(compute_new_gradient(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, self.sample_weights))
+        Ok(compute_new_gradient(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+            Some(weights) => weights.sum() as f32,
+            None => self.x.nrows() as f32,
+        }, self.sample_weights))
     }
 }
 

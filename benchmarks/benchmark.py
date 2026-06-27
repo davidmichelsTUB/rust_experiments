@@ -15,9 +15,9 @@ _ROWS = [
     1000,
     5000,
     10000,
-    25_000,
-    50_000,
-    100_000,
+    # 25_000,
+    # 50_000,
+    # 100_000,
     # 500_000,
     # 1_000_000,
     # 5_000_000
@@ -129,6 +129,7 @@ def main():
                 result = bench_binary(
                     rows, cols, max_iters, kernel="fused_parallel", repeats=4
                 )
+                print(result["acc"])
                 df.append(result)
 
     df = pd.DataFrame(df)

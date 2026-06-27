@@ -16,7 +16,7 @@ class LogisticRegression(SklearnLogisticRegression):
         l1_ratio=0.0,
         dual=False,
         tol=0.0001,
-        fit_intercept=False,
+        fit_intercept=True,
         intercept_scaling=1,
         class_weight=None,
         random_state=None,
