@@ -16,8 +16,8 @@ _ROWS = [
     5000,
     10000,
     25_000,
-    50_000,
-    100_000,
+    # 50_000,
+    # 100_000,
     # 500_000,
     # 1_000_000,
     # 5_000_000
@@ -85,7 +85,7 @@ def bench_binary(
         return mean, std, result
 
     # Rust implementation
-    rust_model = RustLogisticRegression(max_iter=max_iters)
+    rust_model = RustLogisticRegression(max_iter=max_iters, fit_intercept=False)
     rust_fit_time, rust_fit_std, _ = time_it(lambda: rust_model.fit(X, y))
     rust_predict_time, rust_predict_std, rust_proba = time_it(
         lambda: rust_model.predict_proba(X, kernel=kernel)
@@ -93,7 +93,7 @@ def bench_binary(
     rust_acc = ((rust_proba >= 0.5).astype(int) == y).mean()
 
     # scikit-learn implementation
-    sklearn_model = SklearnLogisticRegression(max_iter=max_iters, solver="lbfgs")
+    sklearn_model = SklearnLogisticRegression(max_iter=max_iters, solver="lbfgs", fit_intercept=False)
     sklearn_fit_time, sklearn_fit_std, _ = time_it(lambda: sklearn_model.fit(X, y))
     sklearn_predict_time, sklearn_predict_std, sklearn_pp = time_it(lambda: sklearn_model.predict_proba(X))
     sklearn_proba = sklearn_pp[:, 1]  # (n, 2) -> positive-class column
@@ -129,6 +129,8 @@ def main():
                 result = bench_binary(
                     rows, cols, max_iters, kernel="fused_parallel", repeats=4
                 )
+
+                print(result["acc"])
                 df.append(result)
 
     df = pd.DataFrame(df)

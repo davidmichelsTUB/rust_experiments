@@ -6,15 +6,18 @@ fn sigmoid(z: f32) -> f32 {
     1.0 / (1.0 + (-z).exp())
 }
 
-// log(1 + exp(z)), evaluated in a numerically stable way:
-//   max(z, 0) + log(1 + exp(-|z|))
-// Never overflows/underflows for finite z, and ln_1p keeps precision
-// for small arguments. Used for the loss instead of routing through
-// sigmoid -> ln, which produces -inf once sigmoid saturates to 0/1.
+//copy paste from scikit learn
 #[inline(always)]
-fn softplus(z: f32) -> f32 {
-    z.max(0.0) + (-z.abs()).exp().ln_1p()
+fn log1pexp(z: f32) -> f32 {
+    match z {
+        z if z <= -17.0 => z.exp(),
+        z if z <= -1.0 => z.exp().ln_1p(),
+        z if z <= 9.0 => (1.0 + z.exp()).ln(),
+        z if z <= 14.6 => z + (-z).exp(),
+        _ => z,
+    }
 }
+
 
 // Variant 1: Use BLAS dgemv + mapv (two passes)
 fn dot_sigmoid_blas(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
@@ -49,7 +52,8 @@ pub fn compute_loss(
     w: ArrayView1<f32>,
     l1_reg: f32,
     l2_reg: f32,
-    sample_weights: Option<ArrayView1<f32>>,
+    sample_weights_sum: f32,
+    sample_weights: Option<ArrayView1<f32>>
 ) -> f32 {
     let (log_loss, reg) =  rayon::join(
             || {
@@ -61,7 +65,7 @@ pub fn compute_loss(
                     .zip(weights.as_slice().unwrap().into_par_iter())
                     .map(|((row, label), weight)| {
                         let z = row.dot(&w);
-                        (softplus(z) - *label * z) * *weight
+                        (log1pexp(z) - *label * z) * *weight
                     })
                     .sum::<f32>()
             }
@@ -71,7 +75,7 @@ pub fn compute_loss(
                     .zip(y.as_slice().unwrap().into_par_iter())
                     .map(|(row, label)| {
                         let z = row.dot(&w);
-                        softplus(z) - *label * z
+                        log1pexp(z) - *label * z
                     })
                     .sum::<f32>()
             }
@@ -81,11 +85,12 @@ pub fn compute_loss(
                 w.as_slice()
                     .unwrap()
                     .iter()
-                    .map(|wi| l1_reg * wi.abs() + l2_reg * wi * wi)
+                    .map(|wi| l1_reg * wi.abs() + l2_reg * wi * wi * 0.5)
                     .sum::<f32>()
             },
         );
-    (log_loss + reg) / (x.nrows() as f32)
+
+    log_loss / sample_weights_sum + reg
 }
 
 // Gradient has its own kernel
@@ -95,6 +100,7 @@ pub fn compute_new_gradient(
     w: ArrayView1<f32>,
     l1_reg: f32,
     l2_reg: f32,
+    sample_weights_sum: f32,
     sample_weights: Option<ArrayView1<f32>>,
 ) -> Array1<f32> {
     let (loss_grad, reg_grad) = rayon::join(
@@ -107,8 +113,14 @@ pub fn compute_new_gradient(
                         .fold(
                             || Array1::<f32>::zeros(w.len()),
                             |mut acc, (i, row)| {
-                                let z = row.dot(&w);
-                                let diff = sigmoid(z) - y[i];
+                                let r = row.dot(&w);
+                                let z = r.exp();
+                                let z_neg = 1.0 / z;
+
+                                let diff = match r {
+                                    r if r > -17.0 => ((1.0 - y[i]) - y[i] * z_neg)/(1.0 + z_neg),
+                                    _ => z - y[i]
+                                };
                                 let weight = weights[i];
 
                                 for (j, xi) in row.iter().enumerate() {
@@ -130,9 +142,15 @@ pub fn compute_new_gradient(
                         .fold(
                             || Array1::<f32>::zeros(w.len()),
                             |mut acc, (i, row)| {
-                                let z = row.dot(&w);
-                                let diff = sigmoid(z) - y[i];
+                                let r = row.dot(&w);
+                                let z = r.exp();
+                                let z_neg = 1.0 / z;
 
+                                let diff = match r {
+                                    r if r > -17.0 => ((1.0 - y[i]) - y[i] * z_neg)/(1.0 + z_neg),
+                                    _ => z - y[i]
+                                };
+                                
                                 for (j, xi) in row.iter().enumerate() {
                                     acc[j] += xi * diff;
                                 }
@@ -149,10 +167,10 @@ pub fn compute_new_gradient(
         },
         || {
             w.iter()
-                .map(|&wi| l1_reg * wi.signum() + 2.0 * l2_reg * wi)
+                .map(|&wi| l1_reg * wi.signum() + l2_reg * wi)
                 .collect::<Array1<f32>>()
         },
     );
 
-    (loss_grad + reg_grad) / x.nrows() as f32
+    loss_grad / sample_weights_sum + reg_grad
 }

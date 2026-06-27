@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+
 _ROWS = [
     100,
     500,
@@ -12,8 +13,8 @@ _ROWS = [
     5000,
     10000,
     25_000,
-    50_000,
-    100_000,
+    # 50_000,
+    # 100_000,
     # 500_000,
     # 1_000_000,
     # 5_000_000
@@ -30,6 +31,7 @@ _COLUMNS = [
     # 100_000,
     # 500_000,
 ]
+
 
 def plot_benchmark_data(title, xlabel, ylabel, x, y_rust, y_sklearn):
     width = 0.4
