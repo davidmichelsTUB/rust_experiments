@@ -5,6 +5,7 @@ import numpy as np
 
 _FIT = {
     "lbfgs" : rust_logistic.binary_lbfgs_fit,
+    "multiclass_lbfgs" : rust_logistic.multiclass_lbfgs_fit
 }
 
 class LogisticRegression(SklearnLogisticRegression):
@@ -63,19 +64,28 @@ class LogisticRegression(SklearnLogisticRegression):
         if self.coef_.ndim == 1:
             X = X.astype(np.float32, order='C', copy=False)
             return rust_logistic.binary_predict_proba(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False), kernel=kernel)
-
+        
         else:
-            raise ValueError("Multiclass prediction is not supported in this implementation.")
+            X = X.astype(np.float32, order='C', copy=False)
+            return rust_logistic.multiclass_predict_proba(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False))
     
 
     def predict(self, X, kernel: str = "fused_parallel"):
-        pred_proba = self.predict_proba(X, kernel)
-        return (pred_proba >= 0.5).astype(int) if pred_proba.ndim == 1 else pred_proba.argmax(axis=1)
-    
+        if not hasattr(self, "n_classes"):
+            raise ValueError("This LogisticRegression instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
+        if self.n_classes == 2:
+            X = X.astype(np.float32, order='C', copy=False)
+            pred_proba = self.predict_proba(X, kernel)
+            return (pred_proba >= 0.5).astype(int)
+        else:
+            X = X.astype(np.float32, order='C', copy=False)
+            pred = rust_logistic.multiclass_predict(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False))
+            return pred
 
     def fit(self, X, y, sample_weight=None):
         
         classes = set(y)
+        self.n_classes = len(classes)
 
         if len(classes) == 2:
 
@@ -113,4 +123,40 @@ class LogisticRegression(SklearnLogisticRegression):
                         tolerance=self.tol,
                         sample_weights=sample_weight
                     )
+
+        elif len(classes) > 2:
+
+            if X.ndim != 2:
+                raise ValueError("X must be a 2D array.")
+            if y.ndim != 1:
+                raise ValueError("y must be a 1D array.")
+            if X.shape[0] != len(y):
+                raise ValueError("Number of samples in X and y must be the same.")
+            
+
+            if not all(label in range(len(classes)) for label in classes):
+                raise ValueError("Class labels must be consecutive integers starting from 0 for multiclass classification.")
+
+            X = X.astype(dtype=np.float32, order='C', copy=False)
+            y = y.astype(dtype=np.uint64, order='C', copy=False)
+
+            if sample_weight is not None:
+                if sample_weight.ndim != 1:
+                    raise ValueError("sample_weight must be a 1D array.")
+                if len(sample_weight) != len(y):
+                    raise ValueError("Number of samples in sample_weight must be the same as in y.")
+                sample_weight = sample_weight.astype(dtype=np.float32, order='C', copy=False)
+
+            if self.solver == "lbfgs":
+                self.coef_ = rust_logistic.multiclass_lbfgs_fit(
+                    X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))),
+                    y,
+                    n_classes=len(classes),
+                    l1_reg=1.0 / self.C * self.l1_ratio,
+                    l2_reg=1.0 / self.C * (1 - self.l1_ratio),
+                    max_iters=self.max_iter,
+                    m=10,
+                    tolerance=self.tol,
+                    sample_weights=sample_weight
+                )
                 

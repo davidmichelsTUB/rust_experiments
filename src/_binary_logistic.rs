@@ -32,7 +32,7 @@ fn dot_sigmoid_fused_parallel(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<
 }
 
 // Here the "real" function will call the kernel
-pub fn predict_proba_impl(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) -> Array1<f32> {
+pub fn predict_proba_impl_binary(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) -> Array1<f32> {
     match kernel {
         "fused_parallel" => dot_sigmoid_fused_parallel(x, w),
         "blas" => dot_sigmoid_blas(x, w),
@@ -43,7 +43,7 @@ pub fn predict_proba_impl(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel: &str) 
 ////////////////////////////////////////////////////////////////////////
 
 // Loss has its own kernel
-pub fn compute_loss(
+pub fn compute_loss_binary(
     x: ArrayView2<f32>,
     y: ArrayView1<f32>,
     w: ArrayView1<f32>,
@@ -82,7 +82,7 @@ pub fn compute_loss(
                 w.as_slice()
                     .unwrap()
                     .iter()
-                    .map(|wi| l1_reg * wi.abs() + 0.5 * l2_reg * wi * wi)
+                    .map(|wi| l1_reg * wi.abs() + 0.5* l2_reg * wi * wi)
                     .sum::<f32>()
             },
         );
@@ -90,7 +90,7 @@ pub fn compute_loss(
 }
 
 // Gradient has its own kernel
-pub fn compute_new_gradient(
+pub fn compute_new_gradient_binary(
     x: ArrayView2<f32>,
     y: ArrayView1<f32>,
     w: ArrayView1<f32>,

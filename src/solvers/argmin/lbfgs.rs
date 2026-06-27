@@ -2,9 +2,9 @@ use ndarray::{Array1, ArrayView1, ArrayView2};
 use argmin::core::{CostFunction, Gradient, Executor, Error};
 use argmin::solver::quasinewton::LBFGS;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
-use crate::{compute_loss, compute_new_gradient};
+use crate::{compute_loss_binary, compute_new_gradient_binary};
 
-struct LogisticProblem<'a> {
+struct BinaryLogisticProblem<'a> {
     x: ArrayView2<'a, f32>,
     y: ArrayView1<'a, f32>,
     sample_weights: Option<ArrayView1<'a, f32>>,
@@ -12,31 +12,32 @@ struct LogisticProblem<'a> {
     l2_reg: f32,
 }
 
-impl<'a> CostFunction for LogisticProblem<'a> {
+/////////////////////
+
+impl<'a> CostFunction for BinaryLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Output = f32;
     fn cost(&self, w: &Array1<f32>) -> Result<f32, argmin::core::Error> {
-        Ok(compute_loss(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_loss_binary(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
     }
 }
 
-impl<'a> Gradient for LogisticProblem<'a> {
+impl<'a> Gradient for BinaryLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Gradient = Array1<f32>;
     fn gradient(&self, w: &Array1<f32>) -> Result<Array1<f32>, argmin::core::Error> {
-        Ok(compute_new_gradient(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_new_gradient_binary(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
     }
 }
-
 ////////////////////////////////////////////////////////////
 
-pub fn fit<'a>(
+pub fn fit_binary<'a>(
     x: ArrayView2<'a, f32>,
     y: ArrayView1<'a, f32>,
     l1_reg: f32,
@@ -46,7 +47,7 @@ pub fn fit<'a>(
     tolerance: f32,
     sample_weights: Option<ArrayView1<'a, f32>>
 ) -> Result<Array1<f32>, Error> {
-    let problem = LogisticProblem { x, y, l1_reg, l2_reg, sample_weights };
+    let problem = BinaryLogisticProblem { x, y, l1_reg, l2_reg, sample_weights };
     let linesearch = MoreThuenteLineSearch::new();
 
     let w_init = Array1::<f32>::zeros(x.ncols());

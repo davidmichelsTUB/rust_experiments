@@ -21,11 +21,11 @@ _ROWS = [
 ]
 
 _COLUMNS = [
-    10,
-    50,
+    # 10,
+    # 50,
     100,
-    500,
-    1000,
+    # 500,
+    # 1000,
     # 5000,
     # 10_000,
     # 100_000,
@@ -147,7 +147,10 @@ def main():
     args = argparser.parse_args()
     
     df = pd.read_csv(args.csv_path)
-    df.drop(columns=["max_iters", "kernel", "repeats"], inplace=True)
+    if "kernel" not in df.columns:
+        df.drop(columns=["max_iters", "repeats"], inplace=True)
+    else:
+        df.drop(columns=["kernel", "max_iters", "repeats"], inplace=True)
 
     parent = Path(args.csv_path).parent
     
