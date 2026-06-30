@@ -3,7 +3,7 @@ import os
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler as _SKMinMaxScaler
 from sklearn.feature_extraction.text import CountVectorizer as _SKCountVectorizer
-
+from scipy.sparse import csr_matrix
 from sklearn.utils.validation import check_is_fitted
 import logging
 import time
@@ -124,10 +124,12 @@ class RustyCountVectorizer(_SKCountVectorizer):
         logger.debug("Using RustyCountVectorizer transform")
 
         corpus = list(raw_documents)
-        return count_vectorize_transform(
+        data, indices, indptr =  count_vectorize_transform(
             corpus, self.vocabulary_, self._stopwords_set(),
             self.token_pattern, self._n_chunks(corpus)
         )
+        csr = csr_matrix((data,indices,indptr),shape=(len(raw_documents),len(self.vocabulary_)))
+        return csr
 
     def fit_transform(self, raw_documents, y=None):
         return self.fit(raw_documents).transform(raw_documents)

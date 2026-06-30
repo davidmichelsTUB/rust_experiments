@@ -45,5 +45,5 @@ class TestAdapterCountVectorizer(unittest.TestCase):
         sk_out = sk.fit_transform(x)
         rusty = RustyCountVectorizer()
         rusty_out = rusty.fit_transform(x)
-        assert (sk_out == rusty_out).all()
+        assert (sk_out != rusty_out).nnz == 0
             

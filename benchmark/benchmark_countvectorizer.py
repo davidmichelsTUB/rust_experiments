@@ -14,7 +14,7 @@ import pandas as pd
 from typing import Callable
 
 
-N_REPEATS = 5
+N_REPEATS = 3
 N_CHUNKS_LIST = [1, os.cpu_count()]
 
 def load_corpus() -> list[str]:
@@ -36,6 +36,7 @@ def run_trials(
         cv.transform(corpus)
         transform_ms = (time.perf_counter() - t0) * 1000
         results.append((fit_ms, transform_ms))
+        time.sleep(5)
     return results
 
 
