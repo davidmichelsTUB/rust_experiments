@@ -12,10 +12,10 @@ _ROWS = [
     1000,
     5000,
     10000,
-    # 25_000,
-    # 50_000,
-    # 100_000,
-    # 500_000,
+    25_000,
+    50_000,
+    100_000,
+    500_000,
     # 1_000_000,
     # 5_000_000
 ]
@@ -147,10 +147,7 @@ def main():
     args = argparser.parse_args()
     
     df = pd.read_csv(args.csv_path)
-    if "kernel" not in df.columns:
-        df.drop(columns=["max_iters", "repeats"], inplace=True)
-    else:
-        df.drop(columns=["kernel", "max_iters", "repeats"], inplace=True)
+    df.drop(columns=["sklearn_kwargs"], inplace=True)
 
     parent = Path(args.csv_path).parent
     

@@ -4,9 +4,10 @@ import numpy as np
 
 
 _FIT = {
-    "lbfgs" : rust_logistic.binary_lbfgs_fit,
-    "multiclass_lbfgs" : rust_logistic.multiclass_lbfgs_fit
+    "lbfgs": rust_logistic.binary_lbfgs_fit,
+    "multiclass_lbfgs": rust_logistic.multiclass_lbfgs_fit,
 }
+
 
 class LogisticRegression(SklearnLogisticRegression):
     def __init__(
@@ -50,113 +51,189 @@ class LogisticRegression(SklearnLogisticRegression):
         self.l1_ratio = l1_ratio
         self.tol = tol
         self.fit_intercept = fit_intercept
+        self.warm_start = warm_start
+        self.classes_weight = class_weight
 
-        
+    def _check_before_predict(self, X):
+        if (
+            not hasattr(self, "coef_")
+            or not hasattr(self, "n_classes")
+            or not hasattr(self, "n_features")
+        ):
+            raise ValueError(
+                "This LogisticRegression instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator."
+            )
 
-    def predict_proba(self, X, kernel: str = "fused_parallel"):
+        if X.ndim != 2:
+            raise ValueError("X must be a 2D array.")
 
-        if kernel not in ["fused_parallel", "blas"]:
-            raise ValueError("Invalid kernel specified. Supported kernels are 'fused_parallel' and 'blas'.")
-        
-        if not hasattr(self, "coef_"):
-            raise ValueError("This LogisticRegression instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
-        
-        if self.coef_.ndim == 1:
-            X = X.astype(np.float32, order='C', copy=False)
-            return rust_logistic.binary_predict_proba(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False), kernel=kernel)
-        
-        else:
-            X = X.astype(np.float32, order='C', copy=False)
-            return rust_logistic.multiclass_predict_proba(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False))
-    
+        if self.coef_.flags["C_CONTIGUOUS"] is False:
+            raise ValueError(
+                "The coefficient array is not C-contiguous. Please ensure that the coefficients are stored in a C-contiguous manner... Fit again or convert the array to C-contiguous format before calling predict or predict_proba."
+            )
 
-    def predict(self, X, kernel: str = "fused_parallel"):
-        if not hasattr(self, "n_classes"):
-            raise ValueError("This LogisticRegression instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
+        if self.coef_.dtype != np.float32:
+            raise ValueError(
+                "The coefficient array must be of type float32. Please ensure that the coefficients are of the correct type before calling predict or predict_proba... Fit again or convert the array to float32 before calling predict or predict_proba."
+            )
+
+        if X.flags["C_CONTIGUOUS"] is False:
+            raise ValueError(
+                "The input array X is not C-contiguous. Please ensure that the input data is stored in a C-contiguous manner... Convert the array to C-contiguous format before calling predict or predict_proba."
+            )
+
+        if X.dtype != np.float32:
+            raise ValueError(
+                "The input array X must be of type float32. Please ensure that the input data is of the correct type before calling predict or predict_proba."
+            )
+
+        if self.n_features != X.shape[1] + 1 if self.fit_intercept else 0:
+            raise ValueError(
+                f"Number of features in X ({X.shape[1]}) does not match the number of features the model was trained on ({self.n_features - 1 if self.fit_intercept else self.n_features})."
+            )
+
+        if (self.n_classes if self.n_classes > 2 else 1) * self.n_features != self.coef_.shape[0]:
+            raise ValueError(
+                f"Number of classes ({self.n_classes}) and number of features ({self.n_features}) do not match the shape of the coefficient array ({self.coef_.shape[0]} = {self.n_classes * self.n_features})."
+            )
+
+    def _check_before_fit(self, X, y, sample_weight):
+        if X.ndim != 2:
+            raise ValueError("X must be a 2D array.")
+
+        if y.ndim != 1:
+            raise ValueError("y must be a 1D array.")
+
+        if X.shape[0] != len(y):
+            raise ValueError("Number of samples in X and y must be the same.")
+
+        if X.dtype != np.float32:
+            raise ValueError(
+                "The input array X must be of type float32. Please ensure that the input data is of the correct type before calling fit."
+            )
+
+        if y.dtype != np.uint32:
+            raise ValueError(
+                "The input array y must be of type uint32. Please ensure that the input data is of the correct type before calling fit."
+            )
+
+        if X.flags["C_CONTIGUOUS"] is False:
+            raise ValueError(
+                "The input array X is not C-contiguous. Please ensure that the input data is stored in a C-contiguous manner... Convert the array to C-contiguous format before calling fit."
+            )
+
+        if y.flags["C_CONTIGUOUS"] is False:
+            raise ValueError(
+                "The input array y is not C-contiguous. Please ensure that the input data is stored in a C-contiguous manner... Convert the array to C-contiguous format before calling fit."
+            )
+
+        if sample_weight is not None:
+            if sample_weight.ndim != 1:
+                raise ValueError("sample_weight must be a 1D array.")
+            if len(sample_weight) != len(y):
+                raise ValueError(
+                    "Number of samples in sample_weight and y must be the same."
+                )
+            if sample_weight.dtype != np.float32:
+                raise ValueError(
+                    "The input array sample_weight must be of type float32. Please ensure that the input data is of the correct type before calling fit."
+                )
+            if sample_weight.flags["C_CONTIGUOUS"] is False:
+                raise ValueError(
+                    "The input array sample_weight is not C-contiguous. Please ensure that the input data is stored in a C-contiguous manner... Convert the array to C-contiguous format before calling fit."
+                )
+
+        self.n_classes = max(y.max() + 1, 2)
+        self.n_features = X.shape[1] + 1 if self.fit_intercept else 0
+
+        # Ensure at least two classes for binary classification
+        if self.n_features < 1:
+            raise ValueError("The number of features must be at least 1.")
+
+    def predict_proba(self, X):
+
+        self._check_before_predict(X)
+
         if self.n_classes == 2:
-            X = X.astype(np.float32, order='C', copy=False)
-            pred_proba = self.predict_proba(X, kernel)
-            return (pred_proba >= 0.5).astype(int)
+            class0 = rust_logistic.binary_predict_proba(
+                X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                self.coef_,
+                kernel="fused_parallel"
+            )
+            return np.column_stack((class0, 1 - class0))
+
         else:
-            X = X.astype(np.float32, order='C', copy=False)
-            pred = rust_logistic.multiclass_predict(X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))), self.coef_.astype(np.float32, order='C', copy=False))
-            return pred
+            return rust_logistic.multiclass_predict_proba(
+                X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                self.coef_,
+            )
+
+    def predict(self, X):
+
+        self._check_before_predict(X)
+
+        if self.n_classes == 2:
+            pred_proba = rust_logistic.binary_predict_proba(
+                X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                self.coef_,
+                kernel="fused_parallel"
+            )
+            return (pred_proba >= 0.5).astype(np.uint32)
+        else:
+            return rust_logistic.multiclass_predict(
+                X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                self.coef_,
+            )
 
     def fit(self, X, y, sample_weight=None):
-        
-        classes = set(y)
-        self.n_classes = len(classes)
 
-        if len(classes) == 2:
+        self._check_before_fit(X, y, sample_weight)
 
-
-            if classes != {0, 1}:
-                raise ValueError("Only binary classification with labels 0 and 1 is supported in this implementation.")
-            else:
-                if X.ndim != 2:
-                    raise ValueError("X must be a 2D array.")
-                if y.ndim != 1:
-                    raise ValueError("y must be a 1D array.")
-                if X.shape[0] != len(y):
-                    raise ValueError("Number of samples in X and y must be the same.")
-                
-                
-
-                X = X.astype(dtype=np.float32, order='C', copy=False)
-                y = y.astype(dtype=np.float32, order='C', copy=False)
-
-                if sample_weight is not None:
-                    if sample_weight.ndim != 1:
-                        raise ValueError("sample_weight must be a 1D array.")
-                    if len(sample_weight) != len(y):
-                        raise ValueError("Number of samples in sample_weight must be the same as in y.")
-                    sample_weight = sample_weight.astype(dtype=np.float32, order='C', copy=False)
-                
-                if self.solver == "lbfgs":
-                    self.coef_ = _FIT[self.solver](
-                        X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))),
-                        y,
-                        l1_reg=1.0 / self.C * self.l1_ratio,
-                        l2_reg=1.0 / self.C * (1 - self.l1_ratio),
-                        max_iters=self.max_iter,
-                        m=10,
-                        tolerance=self.tol,
-                        sample_weights=sample_weight
-                    )
-
-        elif len(classes) > 2:
-
-            if X.ndim != 2:
-                raise ValueError("X must be a 2D array.")
-            if y.ndim != 1:
-                raise ValueError("y must be a 1D array.")
-            if X.shape[0] != len(y):
-                raise ValueError("Number of samples in X and y must be the same.")
-            
-
-            if not all(label in range(len(classes)) for label in classes):
-                raise ValueError("Class labels must be consecutive integers starting from 0 for multiclass classification.")
-
-            X = X.astype(dtype=np.float32, order='C', copy=False)
-            y = y.astype(dtype=np.uint64, order='C', copy=False)
-
-            if sample_weight is not None:
-                if sample_weight.ndim != 1:
-                    raise ValueError("sample_weight must be a 1D array.")
-                if len(sample_weight) != len(y):
-                    raise ValueError("Number of samples in sample_weight must be the same as in y.")
-                sample_weight = sample_weight.astype(dtype=np.float32, order='C', copy=False)
-
-            if self.solver == "lbfgs":
-                self.coef_ = rust_logistic.multiclass_lbfgs_fit(
-                    X if not self.fit_intercept else np.hstack((X, np.ones((X.shape[0], 1), dtype=np.float32, order='C'))),
-                    y,
-                    n_classes=len(classes),
-                    l1_reg=1.0 / self.C * self.l1_ratio,
-                    l2_reg=1.0 / self.C * (1 - self.l1_ratio),
-                    max_iters=self.max_iter,
-                    m=10,
-                    tolerance=self.tol,
-                    sample_weights=sample_weight
-                )
-                
+        if self.n_classes == 2:
+            self.coef_ = _FIT["lbfgs"](
+                x=X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                y=y,
+                l1_reg=1 / self.C * self.l1_ratio,
+                l2_reg= 1 / self.C * (1 - self.l1_ratio),
+                max_iters=self.max_iter,
+                m=10,
+                tolerance=self.tol,
+                sample_weights=sample_weight,
+            )
+        else:
+            self.coef_ = _FIT["multiclass_lbfgs"](
+                x=X
+                if not self.fit_intercept
+                else np.hstack(
+                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
+                ),
+                y=y,
+                l1_reg=1 / self.C * self.l1_ratio,
+                l2_reg= 1 / self.C * (1 - self.l1_ratio),
+                n_classes=self.n_classes,
+                n_features=self.n_features,
+                max_iters=self.max_iter,
+                m=10,
+                tolerance=self.tol,
+                sample_weights=sample_weight,
+            )

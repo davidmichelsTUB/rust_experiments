@@ -45,7 +45,7 @@ pub fn predict_proba_impl_binary(x: ArrayView2<f32>, w: ArrayView1<f32>, kernel:
 // Loss has its own kernel
 pub fn compute_loss_binary(
     x: ArrayView2<f32>,
-    y: ArrayView1<f32>,
+    y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     l1_reg: f32,
     l2_reg: f32,
@@ -62,7 +62,7 @@ pub fn compute_loss_binary(
                     .zip(weights.as_slice().unwrap().into_par_iter())
                     .map(|((row, label), weight)| {
                         let z = row.dot(&w);
-                        (softplus(z) - *label * z) * *weight
+                        (softplus(z) - (*label as f32) * z) * *weight
                     })
                     .sum::<f32>()
             }
@@ -72,7 +72,7 @@ pub fn compute_loss_binary(
                     .zip(y.as_slice().unwrap().into_par_iter())
                     .map(|(row, label)| {
                         let z = row.dot(&w);
-                        softplus(z) - *label * z
+                        softplus(z) - (*label as f32) * z
                     })
                     .sum::<f32>()
             }
@@ -81,7 +81,7 @@ pub fn compute_loss_binary(
             || {
                 w.as_slice()
                     .unwrap()
-                    .iter()
+                    .par_iter()
                     .map(|wi| l1_reg * wi.abs() + 0.5* l2_reg * wi * wi)
                     .sum::<f32>()
             },
@@ -92,7 +92,7 @@ pub fn compute_loss_binary(
 // Gradient has its own kernel
 pub fn compute_new_gradient_binary(
     x: ArrayView2<f32>,
-    y: ArrayView1<f32>,
+    y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     l1_reg: f32,
     l2_reg: f32,
@@ -110,7 +110,7 @@ pub fn compute_new_gradient_binary(
                             || Array1::<f32>::zeros(w.len()),
                             |mut acc, (i, row)| {
                                 let z = row.dot(&w);
-                                let diff = sigmoid(z) - y[i];
+                                let diff = sigmoid(z) - (y[i] as f32);
                                 let weight = weights[i];
 
                                 for (j, xi) in row.iter().enumerate() {
@@ -133,7 +133,7 @@ pub fn compute_new_gradient_binary(
                             || Array1::<f32>::zeros(w.len()),
                             |mut acc, (i, row)| {
                                 let z = row.dot(&w);
-                                let diff = sigmoid(z) - y[i];
+                                let diff = sigmoid(z) - (y[i] as f32);
 
                                 for (j, xi) in row.iter().enumerate() {
                                     acc[j] += xi * diff;
@@ -150,7 +150,7 @@ pub fn compute_new_gradient_binary(
             }
         },
         || {
-            w.iter()
+                w.iter()
                 .map(|&wi| l1_reg * wi.signum() + l2_reg * wi)
                 .collect::<Array1<f32>>()
         },
