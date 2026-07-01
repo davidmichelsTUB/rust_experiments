@@ -10,14 +10,13 @@ import timeit
 import pandas as pd
 
 _ROWS = [
-    100,
-    500,
+    # 100,
+    # 500,
     1000,
     5000,
     10000,
-    25_000,
-    50_000,
-    100_000,
+    # 50_000,
+    # 100_000,
     # 500_000,
     # 1_000_000,
     # 5_000_000
@@ -26,11 +25,11 @@ _ROWS = [
 _COLUMNS = [
     # 10,
     # 50,
-    100,
+    # 100,
     # 500,
     # 1000,
     # 5000,
-    # 10_000,
+    10_000,
     # 100_000,
     # 500_000,
 ]
@@ -98,6 +97,7 @@ def bench(
     rust_predict_time, rust_predict_std, rust_predict = time_it(
         lambda: rust_model.predict(X)
     )
+    
     rust_acc = (rust_predict == y).mean()
 
     # Predicting probabilities
@@ -105,7 +105,9 @@ def bench(
         lambda: rust_model.predict_proba(X)
     )
 
-
+    print(f"Rust fit time: {rust_fit_time:.6f}s ± {rust_fit_std:.6f}s")
+    print(f"Rust predict time: {rust_predict_time:.6f}s ± {rust_predict_std:.6f}s")
+    print(f"Rust predict proba time: {rust_predict_proba_time:.6f}s ± {rust_predict_proba_std:.6f}s")
     ############################################### scikit-learn implementation
     sklearn_model = SklearnLogisticRegression(**sklearn_kwargs)
 
@@ -119,6 +121,9 @@ def bench(
     # Preicting probabilities
     sklearn_predict_proba_time, sklearn_predict_proba_std, sklearn_predict_proba = time_it(lambda: sklearn_model.predict_proba(X))
 
+    print(f"Scikit-learn fit time: {sklearn_fit_time:.6f}s ± {sklearn_fit_std:.6f}s")
+    print(f"Scikit-learn predict time: {sklearn_predict_time:.6f}s ± {sklearn_predict_std:.6f}s")
+    print(f"Scikit-learn predict proba time: {sklearn_predict_proba_time:.6f}s ± {sklearn_predict_proba_std:.6f}s")
 
     proba_error_mean = np.abs(rust_predict_proba - sklearn_predict_proba).mean()
     proba_error_max = np.abs(rust_predict_proba - sklearn_predict_proba).max()
@@ -171,7 +176,7 @@ def main():
             for max_iters in _MAX_ITERS:
                 print(f"Benchmarking: rows={rows}, cols={cols}, max_iters={max_iters}")
                 result = bench(
-                    rows, cols, 10, repeats=4, sklearn_kwargs=sklearn_kwargs
+                    rows, cols, 2, repeats=4, sklearn_kwargs=sklearn_kwargs
                 )
                 print(result["acc"])
                 df.append(result)

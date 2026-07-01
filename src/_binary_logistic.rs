@@ -1,5 +1,5 @@
 use ndarray::parallel::prelude::*;
-use ndarray::{Array, Array1, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 #[inline(always)]
 fn sigmoid(z: f32) -> f32 {
@@ -18,7 +18,9 @@ fn softplus(z: f32) -> f32 {
 
 // Variant 1: Use BLAS dgemv + mapv (two passes)
 fn dot_sigmoid_blas(x: ArrayView2<f32>, w: ArrayView1<f32>) -> Array1<f32> {
-    x.dot(&w).mapv_into(sigmoid)
+    let mut result = x.dot(&w);
+    result.mapv_inplace(sigmoid);
+    result
 }
 
 // Variant 2: Parallelize the dot product + sigmoid using rayon
