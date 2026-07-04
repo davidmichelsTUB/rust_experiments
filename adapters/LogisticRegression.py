@@ -87,12 +87,17 @@ class LogisticRegression(SklearnLogisticRegression):
                 "The input array X must be of type float32. Please ensure that the input data is of the correct type before calling predict or predict_proba."
             )
 
-        if self.n_features != X.shape[1] + 1 if self.fit_intercept else 0:
+        if self.n_features != X.shape[1]:
             raise ValueError(
-                f"Number of features in X ({X.shape[1]}) does not match the number of features the model was trained on ({self.n_features - 1 if self.fit_intercept else self.n_features})."
+                f"Number of features in X ({X.shape[1]}) does not match the number of features the model was trained on ({self.n_features})."
             )
 
-        if (self.n_classes if self.n_classes > 2 else 1) * self.n_features != self.coef_.shape[0]:
+        if self.fit_intercept and self.coef_.shape[0] != (self.n_classes if self.n_classes > 2 else 1) * (self.n_features + 1):
+            raise ValueError(
+                f"Number of classes ({self.n_classes}) and number of features ({self.n_features}) do not match the shape of the coefficient array ({self.coef_.shape[0]} = {self.n_classes * (self.n_features + 1)})."
+            )
+        
+        if not self.fit_intercept and self.coef_.shape[0] != (self.n_classes if self.n_classes > 2 else 1) * self.n_features:
             raise ValueError(
                 f"Number of classes ({self.n_classes}) and number of features ({self.n_features}) do not match the shape of the coefficient array ({self.coef_.shape[0]} = {self.n_classes * self.n_features})."
             )
@@ -144,11 +149,7 @@ class LogisticRegression(SklearnLogisticRegression):
                 )
 
         self.n_classes = max(y.max() + 1, 2)
-        self.n_features = X.shape[1] + 1 if self.fit_intercept else 0
-
-        # Ensure at least two classes for binary classification
-        if self.n_features < 1:
-            raise ValueError("The number of features must be at least 1.")
+        self.n_features = X.shape[1]
 
     def predict_proba(self, X):
 
@@ -163,12 +164,10 @@ class LogisticRegression(SklearnLogisticRegression):
 
         else:
             return rust_logistic.multiclass_predict_proba(
-                X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+                X,
                 self.coef_,
+                intercept=self.fit_intercept,
+                n_classes=self.n_classes
             )
 
     def predict(self, X):
@@ -184,12 +183,10 @@ class LogisticRegression(SklearnLogisticRegression):
             
         else:
             return rust_logistic.multiclass_predict(
-                X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+                X,
                 self.coef_,
+                intercept=self.fit_intercept,
+                n_classes=self.n_classes
             )
 
     def fit(self, X, y, sample_weight=None):
@@ -210,16 +207,13 @@ class LogisticRegression(SklearnLogisticRegression):
             )
         else:
             self.coef_ = _FIT["multiclass_lbfgs"](
-                x=X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+                x=X,
                 y=y,
                 l1_reg=1 / self.C * self.l1_ratio,
                 l2_reg= 1 / self.C * (1 - self.l1_ratio),
                 n_classes=self.n_classes,
                 n_features=self.n_features,
+                intercept=self.fit_intercept,
                 max_iters=self.max_iter,
                 m=10,
                 tolerance=self.tol,

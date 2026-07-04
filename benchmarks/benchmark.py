@@ -118,7 +118,7 @@ def bench(
     sklearn_predict_time, sklearn_predict_std, sklearn_predict = time_it(lambda: sklearn_model.predict(X))
     sklearn_acc = (sklearn_predict == y).mean()
 
-    # Preicting probabilities
+    # Predicting probabilities
     sklearn_predict_proba_time, sklearn_predict_proba_std, sklearn_predict_proba = time_it(lambda: sklearn_model.predict_proba(X))
 
     print(f"Scikit-learn fit time: {sklearn_fit_time:.6f}s ± {sklearn_fit_std:.6f}s")
@@ -176,7 +176,7 @@ def main():
             for max_iters in _MAX_ITERS:
                 print(f"Benchmarking: rows={rows}, cols={cols}, max_iters={max_iters}")
                 result = bench(
-                    rows, cols, 2, repeats=4, sklearn_kwargs=sklearn_kwargs
+                    rows, cols, 5, repeats=4, sklearn_kwargs=sklearn_kwargs
                 )
                 print(result["acc"])
                 df.append(result)

@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 mod _binary_logistic;
 mod _multi_class_logistic;
 pub use _binary_logistic::{compute_new_gradient_binary, compute_loss_binary, dot_sigmoid_fused_parallel, dot_argmax_binary};
-pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass, dot_argmax_multiclass, dot_softmax_multiclass};
+pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass_intercept, compute_gradient_multiclass_nointercept, dot_argmax_multiclass, dot_softmax_multiclass};
 
 mod solvers;
 

@@ -2,7 +2,7 @@ use ndarray::{Array1, ArrayView1, ArrayView2};
 use argmin::core::{CostFunction, Gradient, Executor, Error};
 use argmin::solver::quasinewton::LBFGS;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
-use crate::{compute_loss_binary, compute_new_gradient_binary, compute_loss_multiclass, compute_gradient_multiclass};
+use crate::{compute_loss_binary, compute_new_gradient_binary, compute_loss_multiclass, compute_gradient_multiclass_intercept, compute_gradient_multiclass_nointercept};
 
 struct BinaryLogisticProblem<'a> {
     x: ArrayView2<'a, f32>,
@@ -53,7 +53,12 @@ pub fn fit_binary<'a>(
     let problem = BinaryLogisticProblem { x, y, l1_reg, l2_reg, intercept, sample_weights };
     let linesearch = MoreThuenteLineSearch::new();
 
-    let w_init = Array1::<f32>::zeros(x.ncols() + if intercept { 1 } else { 0 });
+    let w_shape: usize = match intercept {
+        true => x.ncols() + 1,
+        false => x.ncols(),
+    };
+
+    let w_init = Array1::<f32>::zeros(w_shape);
 
     let solver = LBFGS::new(linesearch, m).with_tolerance_grad(tolerance)?;
     
@@ -92,10 +97,17 @@ impl<'a> Gradient for MultiClassLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Gradient = Array1<f32>;
     fn gradient(&self, w: &Array1<f32>) -> Result<Array1<f32>, argmin::core::Error> {
-        Ok(compute_gradient_multiclass(self.x, self.y, w.view(), self.n_classes, self.n_features, self.intercept, self.l1_reg, self.l2_reg, match self.sample_weights {
-            Some(weights) => weights.sum() as f32,
-            None => self.x.nrows() as f32,
-        }, self.sample_weights))
+
+        match self.intercept {
+            true => Ok(compute_gradient_multiclass_intercept(self.x, self.y, w.view(), self.n_classes, self.n_features, self.l1_reg, self.l2_reg, match self.sample_weights {
+                Some(weights) => weights.sum() as f32,
+                None => self.x.nrows() as f32,
+            }, self.sample_weights)),
+            false => Ok(compute_gradient_multiclass_nointercept(self.x, self.y, w.view(), self.n_classes, self.n_features, self.l1_reg, self.l2_reg, match self.sample_weights {
+                Some(weights) => weights.sum() as f32,
+                None => self.x.nrows() as f32,
+            }, self.sample_weights))
+        }
     }
 }
 
@@ -116,7 +128,11 @@ pub fn fit_multiclass<'a>(
     let problem = MultiClassLogisticProblem { x, y, l1_reg, l2_reg, sample_weights, n_classes, n_features, intercept };
     let linesearch = MoreThuenteLineSearch::new();
 
-    let w_init = Array1::<f32>::zeros(n_features as usize * n_classes as usize);
+    let w_shape: usize = match intercept {
+        true => n_classes as usize + (n_features as usize * n_classes as usize),
+        false => (n_features as usize) * (n_classes as usize),
+    };
+    let w_init = Array1::<f32>::zeros(w_shape);
 
     let solver = LBFGS::new(linesearch, m).with_tolerance_grad(tolerance)?;
     
