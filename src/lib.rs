@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 mod _binary_logistic;
 mod _multi_class_logistic;
 pub use _binary_logistic::{compute_new_gradient_binary, compute_loss_binary, dot_sigmoid_fused_parallel, dot_argmax_binary};
-pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass, dot_argmax, dot_softmax};
+pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass, dot_argmax_multiclass, dot_softmax_multiclass};
 
 mod solvers;
 
@@ -66,21 +66,25 @@ fn multiclass_predict_proba<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     w: PyReadonlyArray1<f32>,
+    intercept: bool,
+    n_classes: u32
 ) -> Bound<'py, PyArray2<f32>> {
-    dot_softmax(x.as_array(), w.as_array()).into_pyarray_bound(py)
+    dot_softmax_multiclass(x.as_array(), w.as_array(), intercept, n_classes).into_pyarray_bound(py)
 }
 
 #[pyfunction]
 fn multiclass_predict<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
-    w: PyReadonlyArray1<f32>
+    w: PyReadonlyArray1<f32>,
+    intercept: bool,
+    n_classes: u32
 ) -> Bound<'py, PyArray1<u32>> {
-    dot_argmax(x.as_array(), w.as_array()).into_pyarray_bound(py)
+    dot_argmax_multiclass(x.as_array(), w.as_array(), intercept, n_classes).into_pyarray_bound(py)
 }
 
 #[pyfunction]
-#[pyo3(signature = (x, y, l1_reg, l2_reg, n_classes, n_features,max_iters, m, tolerance, sample_weights=None))]
+#[pyo3(signature = (x, y, l1_reg, l2_reg, n_classes, n_features, intercept, max_iters, m, tolerance, sample_weights=None))]
 fn multiclass_lbfgs_fit<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
@@ -89,6 +93,7 @@ fn multiclass_lbfgs_fit<'py>(
     l2_reg: f32,
     n_classes: u32,
     n_features: u32,
+    intercept: bool,
     max_iters: u64,
     m: usize,
     tolerance: f32,
@@ -105,6 +110,7 @@ fn multiclass_lbfgs_fit<'py>(
         l2_reg,
         n_classes,
         n_features,
+        intercept,
         max_iters,
         m,
         tolerance,

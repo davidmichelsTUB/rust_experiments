@@ -74,13 +74,14 @@ struct MultiClassLogisticProblem<'a> {
     l2_reg: f32,
     n_classes: u32,
     n_features: u32,
+    intercept: bool
 }
 
 impl<'a> CostFunction for MultiClassLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Output = f32;
     fn cost(&self, w: &Array1<f32>) -> Result<f32, argmin::core::Error> {
-        Ok(compute_loss_multiclass(self.x, self.y, w.view(), self.n_classes, self.n_features, self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_loss_multiclass(self.x, self.y, w.view(), self.n_classes, self.n_features, self.intercept, self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
@@ -91,7 +92,7 @@ impl<'a> Gradient for MultiClassLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Gradient = Array1<f32>;
     fn gradient(&self, w: &Array1<f32>) -> Result<Array1<f32>, argmin::core::Error> {
-        Ok(compute_gradient_multiclass(self.x, self.y, w.view(), self.n_classes, self.n_features, self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_gradient_multiclass(self.x, self.y, w.view(), self.n_classes, self.n_features, self.intercept, self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
@@ -105,13 +106,14 @@ pub fn fit_multiclass<'a>(
     l2_reg: f32,
     n_classes: u32,
     n_features: u32,
+    intercept: bool,
     max_iters: u64,
     m: usize,
     tolerance: f32,
     sample_weights: Option<ArrayView1<'a, f32>>,
 ) -> Result<Array1<f32>, Error> {
 
-    let problem = MultiClassLogisticProblem { x, y, l1_reg, l2_reg, sample_weights, n_classes, n_features };
+    let problem = MultiClassLogisticProblem { x, y, l1_reg, l2_reg, sample_weights, n_classes, n_features, intercept };
     let linesearch = MoreThuenteLineSearch::new();
 
     let w_init = Array1::<f32>::zeros(n_features as usize * n_classes as usize);
