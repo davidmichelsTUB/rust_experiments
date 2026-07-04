@@ -7,6 +7,7 @@ use crate::{compute_loss_binary, compute_new_gradient_binary, compute_loss_multi
 struct BinaryLogisticProblem<'a> {
     x: ArrayView2<'a, f32>,
     y: ArrayView1<'a, u32>,
+    intercept: bool,
     sample_weights: Option<ArrayView1<'a, f32>>,
     l1_reg: f32,
     l2_reg: f32,
@@ -16,8 +17,9 @@ struct BinaryLogisticProblem<'a> {
 impl<'a> CostFunction for BinaryLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Output = f32;
+
     fn cost(&self, w: &Array1<f32>) -> Result<f32, argmin::core::Error> {
-        Ok(compute_loss_binary(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_loss_binary(self.x, self.y, w.view(), self.intercept, self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
@@ -28,7 +30,7 @@ impl<'a> Gradient for BinaryLogisticProblem<'a> {
     type Param = Array1<f32>;
     type Gradient = Array1<f32>;
     fn gradient(&self, w: &Array1<f32>) -> Result<Array1<f32>, argmin::core::Error> {
-        Ok(compute_new_gradient_binary(self.x, self.y, w.view(), self.l1_reg, self.l2_reg, match self.sample_weights {
+        Ok(compute_new_gradient_binary(self.x, self.y, w.view(), self.intercept, self.l1_reg, self.l2_reg, match self.sample_weights {
             Some(weights) => weights.sum() as f32,
             None => self.x.nrows() as f32,
         }, self.sample_weights))
@@ -41,15 +43,17 @@ pub fn fit_binary<'a>(
     y: ArrayView1<'a, u32>,
     l1_reg: f32,
     l2_reg: f32,
+    intercept: bool,
     max_iters: u64,
     m: usize,
     tolerance: f32,
     sample_weights: Option<ArrayView1<'a, f32>>
 ) -> Result<Array1<f32>, Error> {
-    let problem = BinaryLogisticProblem { x, y, l1_reg, l2_reg, sample_weights };
+
+    let problem = BinaryLogisticProblem { x, y, l1_reg, l2_reg, intercept, sample_weights };
     let linesearch = MoreThuenteLineSearch::new();
 
-    let w_init = Array1::<f32>::zeros(x.ncols());
+    let w_init = Array1::<f32>::zeros(x.ncols() + if intercept { 1 } else { 0 });
 
     let solver = LBFGS::new(linesearch, m).with_tolerance_grad(tolerance)?;
     

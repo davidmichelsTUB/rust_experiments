@@ -11,12 +11,13 @@ _ROWS = [
     # 500,
     # 1000,
     # 5000,
+    1000,
+    5000,
     10000,
-    # 25_000,
     50_000,
     100_000,
-    500_000,
-    1_000_000,
+    # 500_000,
+    # 1_000_000,
     # 5_000_000
 ]
 
@@ -24,8 +25,8 @@ _COLUMNS = [
     # 10,
     # 50,
     100,
-    # 500,
-    # 1000,
+    500,
+    1000,
     # 5000,
     # 10_000,
     # 100_000,
@@ -63,6 +64,7 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
     fit_time = np.array(df["fit_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
     predict_time = np.array(df["predict_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
     accuracies = np.array(df["acc"].map(lambda x : [float(val[len("np.float64("):-1]) for val in x[1:-1].split(", ")]).tolist(), dtype="float64")
+    predict_proba_time = np.array(df["predict_proba_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
 
     fig_fit_time = plot_benchmark_data(
         title=f"Fit Time for {columns} Columns",
@@ -91,7 +93,16 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
         y_sklearn=accuracies[:, 1]
     )
 
-    return fig_fit_time, fig_predict_time, fig_accuracy
+    fig_predict_proba_time = plot_benchmark_data(
+        title=f"Predict Proba Time for {columns} Columns",
+        xlabel="Rows",
+        ylabel="Time (milliseconds)",
+        x=rows,
+        y_rust=predict_proba_time[:, 0],
+        y_sklearn=predict_proba_time[:, 1]
+    )
+
+    return fig_fit_time, fig_predict_time, fig_predict_proba_time, fig_accuracy
 
 
 def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
@@ -102,6 +113,7 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
     fit_time = np.array(df["fit_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
     predict_time = np.array(df["predict_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
     accuracies = np.array(df["acc"].map(lambda x : [float(val[len("np.float64("):-1]) for val in x[1:-1].split(", ")]).tolist(), dtype="float64")
+    predict_proba_time = np.array(df["predict_proba_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
 
     fig_fit_time = plot_benchmark_data(
         title=f"Fit Time for {rows} Rows",
@@ -130,7 +142,16 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
         y_sklearn=accuracies[:, 1]
     )
 
-    return fig_fit_time, fig_predict_time, fig_accuracy
+    fig_predict_proba_time = plot_benchmark_data(
+        title=f"Predict Proba Time for {rows} Rows",
+        xlabel="Columns",
+        ylabel="Time (milliseconds)",
+        x=cols,
+        y_rust=predict_proba_time[:, 0],
+        y_sklearn=predict_proba_time[:, 1]
+    )
+
+    return fig_fit_time, fig_predict_time, fig_accuracy, fig_predict_proba_time
 
 
 def main():
@@ -152,15 +173,17 @@ def main():
     parent = Path(args.csv_path).parent
     
     for cols in _COLUMNS:
-        fit, predict, acc = plot_for_fixed_cols(cols, df)
+        fit, predict, predict_proba, acc = plot_for_fixed_cols(cols, df)
         fit.savefig(parent/f"fit_time_cols_{cols}.png")
         predict.savefig(parent/f"predict_time_cols_{cols}.png")
+        predict_proba.savefig(parent/f"predict_proba_time_cols_{cols}.png")
         acc.savefig(parent/f"accuracy_cols_{cols}.png")
     
     for rows in _ROWS:
-        fit, predict, acc = plot_for_fixed_rows(rows, df)
+        fit, predict, predict_proba, acc = plot_for_fixed_rows(rows, df)
         fit.savefig(parent/f"fit_time_rows_{rows}.png")
         predict.savefig(parent/f"predict_time_rows_{rows}.png")
+        predict_proba.savefig(parent/f"predict_proba_time_rows_{rows}.png")
         acc.savefig(parent/f"accuracy_rows_{rows}.png")
 
 if __name__ == "__main__":

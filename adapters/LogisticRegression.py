@@ -155,16 +155,11 @@ class LogisticRegression(SklearnLogisticRegression):
         self._check_before_predict(X)
 
         if self.n_classes == 2:
-            class0 = rust_logistic.binary_predict_proba(
-                X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+            return rust_logistic.binary_predict_proba(
+                X,
                 self.coef_,
-                kernel="fused_parallel"
+                intercept=self.fit_intercept
             )
-            return np.column_stack((class0, 1 - class0))
 
         else:
             return rust_logistic.multiclass_predict_proba(
@@ -181,16 +176,12 @@ class LogisticRegression(SklearnLogisticRegression):
         self._check_before_predict(X)
 
         if self.n_classes == 2:
-            pred_proba = rust_logistic.binary_predict_proba(
-                X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+            return rust_logistic.binary_predict(
+                X,
                 self.coef_,
-                kernel="fused_parallel"
+                intercept=self.fit_intercept
             )
-            return (pred_proba >= 0.5).astype(np.uint32)
+            
         else:
             return rust_logistic.multiclass_predict(
                 X
@@ -207,14 +198,11 @@ class LogisticRegression(SklearnLogisticRegression):
 
         if self.n_classes == 2:
             self.coef_ = _FIT["lbfgs"](
-                x=X
-                if not self.fit_intercept
-                else np.hstack(
-                    (X, np.ones((X.shape[0], 1), dtype=np.float32, order="C"))
-                ),
+                x=X,
                 y=y,
                 l1_reg=1 / self.C * self.l1_ratio,
                 l2_reg= 1 / self.C * (1 - self.l1_ratio),
+                intercept=self.fit_intercept,
                 max_iters=self.max_iter,
                 m=10,
                 tolerance=self.tol,

@@ -3,29 +3,40 @@ use pyo3::prelude::*;
 
 mod _binary_logistic;
 mod _multi_class_logistic;
-pub use _binary_logistic::{compute_new_gradient_binary, compute_loss_binary, predict_proba_impl_binary};
+pub use _binary_logistic::{compute_new_gradient_binary, compute_loss_binary, dot_sigmoid_fused_parallel, dot_argmax_binary};
 pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass, dot_argmax, dot_softmax};
 
 mod solvers;
+
+#[pyfunction]
+fn binary_predict<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArray2<f32>,
+    w: PyReadonlyArray1<f32>,
+    intercept: bool,
+) -> Bound<'py, PyArray1<u32>> {
+    dot_argmax_binary(x.as_array(), w.as_array(), intercept).into_pyarray_bound(py)
+}
 
 #[pyfunction]
 fn binary_predict_proba<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     w: PyReadonlyArray1<f32>,
-    kernel: &str,
-) -> Bound<'py, PyArray1<f32>> {
-    predict_proba_impl_binary(x.as_array(), w.as_array(), kernel).into_pyarray_bound(py)
+    intercept: bool,
+) -> Bound<'py, PyArray2<f32>> {
+    dot_sigmoid_fused_parallel(x.as_array(), w.as_array(), intercept).into_pyarray_bound(py)
 }
 
 #[pyfunction]
-#[pyo3(signature = (x, y, l1_reg, l2_reg, max_iters, m, tolerance, sample_weights=None))]
+#[pyo3(signature = (x, y, l1_reg, l2_reg, intercept, max_iters, m, tolerance, sample_weights=None))]
 fn binary_lbfgs_fit<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     y: PyReadonlyArray1<u32>,
     l1_reg: f32,
     l2_reg: f32,
+    intercept: bool,
     max_iters: u64,
     m: usize,
     tolerance: f32,
@@ -40,6 +51,7 @@ fn binary_lbfgs_fit<'py>(
         y.as_array(),
         l1_reg,
         l2_reg,
+        intercept,
         max_iters,
         m,
         tolerance,
@@ -62,7 +74,7 @@ fn multiclass_predict_proba<'py>(
 fn multiclass_predict<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
-    w: PyReadonlyArray1<f32>,
+    w: PyReadonlyArray1<f32>
 ) -> Bound<'py, PyArray1<u32>> {
     dot_argmax(x.as_array(), w.as_array()).into_pyarray_bound(py)
 }
@@ -104,6 +116,7 @@ fn multiclass_lbfgs_fit<'py>(
 // Here where the python modulation comes in
 #[pymodule]
 fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(binary_predict, m)?)?;
     m.add_function(wrap_pyfunction!(binary_predict_proba, m)?)?;
     m.add_function(wrap_pyfunction!(binary_lbfgs_fit, m)?)?;
     m.add_function(wrap_pyfunction!(multiclass_lbfgs_fit, m)?)?;
