@@ -28,6 +28,12 @@ _COLUMNS = [
     10_000
 ]
 
+_CLASSES = [
+    5,
+    10,
+    20
+]
+
 _SKLEARN_KWARGS = {
         "C" : 1.0,
         "l1_ratio" : 0.0,
@@ -47,13 +53,14 @@ _SKLEARN_KWARGS = {
 def run_save_one_bench(
     rows: int,
     cols: int,
+    classes: int,
     sklearn_init_dict: dict = _SKLEARN_KWARGS,
     repeats: int = 4
 ):
     X,y = make_classification(
         n_samples=rows,
         n_features=cols,
-        n_classes=2,
+        n_classes=classes,
         n_informative=cols // 2,
         n_redundant=cols // 4,
         random_state=42
@@ -82,7 +89,7 @@ def run_save_one_bench(
     results = {
         "rows": rows,
         "cols": cols,
-        "n_classes": 2,
+        "n_classes": classes,
         "repeats": repeats,
     }
 
@@ -144,7 +151,8 @@ def run_save_one_bench(
 def main():
     for rows in _ROWS:
         for cols in _COLUMNS:
-            run_save_one_bench(rows, cols, sklearn_init_dict=_SKLEARN_KWARGS, repeats=4)
+            for classes in _CLASSES:
+                run_save_one_bench(rows, cols, classes, sklearn_init_dict=_SKLEARN_KWARGS, repeats=4)
 
 if __name__ == "__main__":
     main()

@@ -24,8 +24,8 @@ _ROWS = [
 _COLUMNS = [
     # 10,
     # 50,
-    100,
-    500,
+    # 100,
+    # 500,
     1000,
     # 5000,
     # 10_000,
@@ -61,18 +61,22 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
     df.drop(columns=["cols"], inplace=True)
 
     rows = df["rows"].to_numpy()
-    fit_time = np.array(df["fit_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
-    predict_time = np.array(df["predict_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
-    accuracies = np.array(df["acc"].map(lambda x : [float(val[len("np.float64("):-1]) for val in x[1:-1].split(", ")]).tolist(), dtype="float64")
-    predict_proba_time = np.array(df["predict_proba_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
+    fit_time_rust = np.array(df["rust_fit_time"].to_numpy(), dtype="float64") * 1000
+    fit_time_sklearn = np.array(df["sklearn_fit_time"].to_numpy(), dtype="float64") * 1000
+    predict_time_rust = np.array(df["rust_predict_time"].to_numpy(), dtype="float64") * 1000
+    predict_time_sklearn = np.array(df["sklearn_predict_time"].to_numpy(), dtype="float64") * 1000
+    predict_proba_time_rust = np.array(df["rust_predict_proba_time"].to_numpy(), dtype="float64") * 1000
+    predict_proba_time_sklearn = np.array(df["sklearn_predict_proba_time"].to_numpy(), dtype="float64") * 1000
+    rust_acc = np.array(df["rust_acc"].to_numpy(), dtype="float64")
+    sklearn_acc = np.array(df["sklearn_acc"].to_numpy(), dtype="float64")
 
     fig_fit_time = plot_benchmark_data(
         title=f"Fit Time for {columns} Columns",
         xlabel="Rows",
         ylabel="Time (milliseconds)",
         x=rows,
-        y_rust=fit_time[:, 0],
-        y_sklearn=fit_time[:, 1]
+        y_rust=fit_time_rust,
+        y_sklearn=fit_time_sklearn 
     )
 
     fig_predict_time = plot_benchmark_data(
@@ -80,8 +84,8 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
         xlabel="Rows",
         ylabel="Time (milliseconds)",
         x=rows,
-        y_rust=predict_time[:, 0],
-        y_sklearn=predict_time[:, 1]
+        y_rust=predict_time_rust,
+        y_sklearn=predict_time_sklearn
     )
 
     fig_accuracy = plot_benchmark_data(
@@ -89,8 +93,8 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
         xlabel="Rows",
         ylabel="Accuracy in [0,1]",
         x=rows,
-        y_rust=accuracies[:, 0],
-        y_sklearn=accuracies[:, 1]
+        y_rust=rust_acc,
+        y_sklearn=sklearn_acc
     )
 
     fig_predict_proba_time = plot_benchmark_data(
@@ -98,8 +102,8 @@ def plot_for_fixed_cols(columns: int, df: pd.DataFrame):
         xlabel="Rows",
         ylabel="Time (milliseconds)",
         x=rows,
-        y_rust=predict_proba_time[:, 0],
-        y_sklearn=predict_proba_time[:, 1]
+        y_rust=predict_proba_time_rust,
+        y_sklearn=predict_proba_time_sklearn
     )
 
     return fig_fit_time, fig_predict_time, fig_predict_proba_time, fig_accuracy
@@ -110,18 +114,24 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
     df.drop(columns=["rows"], inplace=True)
 
     cols = df["cols"].to_numpy()
-    fit_time = np.array(df["fit_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
-    predict_time = np.array(df["predict_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
-    accuracies = np.array(df["acc"].map(lambda x : [float(val[len("np.float64("):-1]) for val in x[1:-1].split(", ")]).tolist(), dtype="float64")
-    predict_proba_time = np.array(df["predict_proba_time"].map(lambda x: [float(val) for val in x[1:-1].split(",")]).tolist(), dtype="float64") * 1000
+
+
+    fit_time_rust = np.array(df["rust_fit_time"].to_numpy(), dtype="float64") * 1000
+    fit_time_sklearn = np.array(df["sklearn_fit_time"].to_numpy(), dtype="float64") * 1000
+    predict_time_rust = np.array(df["rust_predict_time"].to_numpy(), dtype="float64") * 1000
+    predict_time_sklearn = np.array(df["sklearn_predict_time"].to_numpy(), dtype="float64") * 1000
+    predict_proba_time_rust = np.array(df["rust_predict_proba_time"].to_numpy(), dtype="float64") * 1000
+    predict_proba_time_sklearn = np.array(df["sklearn_predict_proba_time"].to_numpy(), dtype="float64") * 1000
+    rust_acc = np.array(df["rust_acc"].to_numpy(), dtype="float64")
+    sklearn_acc = np.array(df["sklearn_acc"].to_numpy(), dtype="float64")
 
     fig_fit_time = plot_benchmark_data(
         title=f"Fit Time for {rows} Rows",
         xlabel="Columns",
         ylabel="Time (milliseconds)",
         x=cols,
-        y_rust=fit_time[:, 0],
-        y_sklearn=fit_time[:, 1]
+        y_rust=fit_time_rust,
+        y_sklearn=fit_time_sklearn
     )
 
     fig_predict_time = plot_benchmark_data(
@@ -129,8 +139,8 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
         xlabel="Columns",
         ylabel="Time (milliseconds)",
         x=cols,
-        y_rust=predict_time[:, 0],
-        y_sklearn=predict_time[:, 1]
+        y_rust=predict_time_rust,
+        y_sklearn=predict_time_sklearn
     )
 
     fig_accuracy = plot_benchmark_data(
@@ -138,8 +148,8 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
         xlabel="Columns",
         ylabel="Accuracy in [0,1]",
         x=cols,
-        y_rust=accuracies[:, 0],
-        y_sklearn=accuracies[:, 1]
+        y_rust=rust_acc,
+        y_sklearn=sklearn_acc
     )
 
     fig_predict_proba_time = plot_benchmark_data(
@@ -147,8 +157,8 @@ def plot_for_fixed_rows(rows: int, df: pd.DataFrame):
         xlabel="Columns",
         ylabel="Time (milliseconds)",
         x=cols,
-        y_rust=predict_proba_time[:, 0],
-        y_sklearn=predict_proba_time[:, 1]
+        y_rust=predict_proba_time_rust,
+        y_sklearn=predict_proba_time_sklearn
     )
 
     return fig_fit_time, fig_predict_time, fig_accuracy, fig_predict_proba_time
