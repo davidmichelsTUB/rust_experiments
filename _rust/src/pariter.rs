@@ -29,20 +29,21 @@ pub fn compute_minmax_scale_transform(
         .zip(x.axis_chunks_iter(Axis(0), chunk_size))
         .for_each(|(mut out_chunk, in_chunk)| {
             for (mut out_row, in_row) in out_chunk.rows_mut().into_iter().zip(in_chunk.rows()) {
-                if let Some(out_row_value) = out_row.as_slice_mut()
-                    && let Some(in_row_value) = in_row.as_slice()
-                {
-                    for (((o, &v), &m), &inv) in out_row_value
-                        .iter_mut()
-                        .zip(in_row_value.iter())
-                        .zip(min_vec.iter())
-                        .zip(inv_range.iter())
-                    {
-                        o.write((v - m) * inv);
+                match (out_row.as_slice_mut(), in_row.as_slice()) {
+                    (Some(out_row_value), Some(in_row_value)) => {
+                        for (((o, &v), &m), &inv) in out_row_value
+                            .iter_mut()
+                            .zip(in_row_value.iter())
+                            .zip(min_vec.iter())
+                            .zip(inv_range.iter())
+                        {
+                            o.write((v - m) * inv);
+                        }
                     }
-                } else {
-                    for c in 0..n_cols {
-                        out_row[c].write((in_row[c] - min_vec[c]) * inv_range[c]);
+                    _ => {
+                        for c in 0..n_cols {
+                            out_row[c].write((in_row[c] - min_vec[c]) * inv_range[c]);
+                        }
                     }
                 }
             }

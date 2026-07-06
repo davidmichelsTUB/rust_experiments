@@ -1,0 +1,290 @@
+chunktimer_0_100:            25.237450000 ms
+fit_map:            26.125689000 ms
+fit_reduce:         0.126370000 ms
+fit_sorting:        0.004205000 ms
+fit_total:          26.256264000 ms
+rust_python_function_total:         27.326005000 ms
+chunktimer_0_100:            24.168638000 ms
+fit_map:            24.180103000 ms
+fit_reduce:         0.089909000 ms
+fit_sorting:        0.004656000 ms
+fit_total:          24.274668000 ms
+rust_python_function_total:         24.824774000 ms
+chunktimer_0_100:            25.469390000 ms
+fit_map:            25.480202000 ms
+fit_reduce:         0.114483000 ms
+fit_sorting:        0.004911000 ms
+fit_total:          25.599596000 ms
+rust_python_function_total:         26.418248000 ms
+chunktimer_0_100:            27.637500000 ms
+fit_map:            27.648849000 ms
+fit_reduce:         0.058095000 ms
+fit_sorting:        0.005520000 ms
+fit_total:          27.712464000 ms
+rust_python_function_total:         28.538752000 ms
+####################
+STARTANALYSIS
+{'Config': {'n_unique_words': 100, 'dataset_length': 10000}}
+chunktimer_0_10000:            35.595094000 ms
+fit_map:            35.603399000 ms
+fit_reduce:         0.223394000 ms
+fit_sorting:        0.082481000 ms
+fit_total:          35.909274000 ms
+rust_python_function_total:         36.649039000 ms
+python_total: 37.387094000
+
+
+
+{'Config': {'n_unique_words': 100, 'dataset_length': 100000}}
+chunktimer_6_10000:            36.893981000 ms
+chunktimer_3_10000:            37.423750000 ms
+chunktimer_7_10000:            37.799247000 ms
+chunktimer_1_10000:            38.141494000 ms
+chunktimer_8_10000:            42.518237000 ms
+chunktimer_0_10000:            47.918725000 ms
+chunktimer_5_10000:            50.564868000 ms
+chunktimer_9_10000:            50.536804000 ms
+chunktimer_4_10000:            50.752954000 ms
+chunktimer_2_10000:            52.346253000 ms
+fit_map:            52.434849000 ms
+fit_reduce:         17.746716000 ms
+fit_sorting:        1.838766000 ms
+fit_total:          72.020331000 ms
+rust_python_function_total:         74.967112000 ms
+python_total: 91.994790000
+
+
+
+{'Config': {'n_unique_words': 100, 'dataset_length': 1000000}}
+chunktimer_24_16:            0.289417000 ms
+chunktimer_0_41666:            228.559352000 ms
+chunktimer_14_41666:            292.450291000 ms
+chunktimer_2_41666:            293.036525000 ms
+chunktimer_7_41666:            302.078149000 ms
+chunktimer_22_41666:            314.126168000 ms
+chunktimer_17_41666:            314.804293000 ms
+chunktimer_1_41666:            320.926152000 ms
+chunktimer_13_41666:            322.188561000 ms
+chunktimer_10_41666:            323.885339000 ms
+chunktimer_16_41666:            323.441934000 ms
+chunktimer_8_41666:            325.730102000 ms
+chunktimer_11_41666:            329.123373000 ms
+chunktimer_21_41666:            331.058998000 ms
+chunktimer_20_41666:            333.178777000 ms
+chunktimer_3_41666:            333.608055000 ms
+chunktimer_4_41666:            335.245396000 ms
+chunktimer_18_41666:            335.738982000 ms
+chunktimer_5_41666:            339.709625000 ms
+chunktimer_19_41666:            340.502168000 ms
+chunktimer_23_41666:            340.615142000 ms
+chunktimer_9_41666:            342.206835000 ms
+chunktimer_15_41666:            345.568777000 ms
+chunktimer_12_41666:            348.086205000 ms
+chunktimer_6_41666:            348.289082000 ms
+fit_map:            348.498522000 ms
+fit_reduce:         152.700414000 ms
+fit_sorting:        19.164093000 ms
+fit_total:          520.363029000 ms
+rust_python_function_total:         550.207810000 ms
+python_total: 715.127424999
+
+
+
+{'Config': {'n_unique_words': 1000, 'dataset_length': 10000}}
+chunktimer_0_10000:            36.644374000 ms
+fit_map:            36.657565000 ms
+fit_reduce:         0.460254000 ms
+fit_sorting:        0.149662000 ms
+fit_total:          37.267481000 ms
+rust_python_function_total:         38.100764000 ms
+python_total: 43.251944999
+
+
+
+{'Config': {'n_unique_words': 1000, 'dataset_length': 100000}}
+chunktimer_0_10000:            38.236691000 ms
+chunktimer_2_10000:            40.159888000 ms
+chunktimer_6_10000:            44.155932000 ms
+chunktimer_4_10000:            44.225616000 ms
+chunktimer_9_10000:            48.926803000 ms
+chunktimer_5_10000:            50.027954000 ms
+chunktimer_8_10000:            51.376021000 ms
+chunktimer_3_10000:            55.400970000 ms
+chunktimer_1_10000:            57.252631000 ms
+chunktimer_7_10000:            58.409235000 ms
+fit_map:            58.757373000 ms
+fit_reduce:         24.936262000 ms
+fit_sorting:        2.484578000 ms
+fit_total:          86.178213000 ms
+rust_python_function_total:         89.344098000 ms
+python_total: 100.446548000
+
+
+
+{'Config': {'n_unique_words': 1000, 'dataset_length': 1000000}}
+chunktimer_24_16:            0.649978000 ms
+chunktimer_0_41666:            237.948294000 ms
+chunktimer_2_41666:            290.865599000 ms
+chunktimer_21_41666:            296.758687000 ms
+chunktimer_13_41666:            297.171270000 ms
+chunktimer_3_41666:            301.854147000 ms
+chunktimer_9_41666:            307.867203000 ms
+chunktimer_18_41666:            321.839324000 ms
+chunktimer_5_41666:            326.653825000 ms
+chunktimer_12_41666:            328.118711000 ms
+chunktimer_8_41666:            332.598718000 ms
+chunktimer_15_41666:            333.106482000 ms
+chunktimer_1_41666:            333.786022000 ms
+chunktimer_4_41666:            335.303023000 ms
+chunktimer_6_41666:            338.385163000 ms
+chunktimer_7_41666:            340.236183000 ms
+chunktimer_10_41666:            348.918212000 ms
+chunktimer_17_41666:            349.830449000 ms
+chunktimer_14_41666:            353.262864000 ms
+chunktimer_16_41666:            355.186870000 ms
+chunktimer_19_41666:            357.901920000 ms
+chunktimer_22_41666:            359.061557000 ms
+chunktimer_20_41666:            359.420213000 ms
+chunktimer_11_41666:            363.788720000 ms
+chunktimer_23_41666:            370.468946000 ms
+fit_map:            370.885213000 ms
+fit_reduce:         187.226010000 ms
+fit_sorting:        27.835794000 ms
+fit_total:          585.947017000 ms
+rust_python_function_total:         630.614662000 ms
+python_total: 754.030003000
+
+
+
+{'Config': {'n_unique_words': 10000, 'dataset_length': 10000}}
+chunktimer_0_10000:            32.905770000 ms
+fit_map:            32.918856000 ms
+fit_reduce:         1.044757000 ms
+fit_sorting:        0.565972000 ms
+fit_total:          34.529585000 ms
+rust_python_function_total:         35.408739000 ms
+python_total: 41.121934999
+
+
+
+{'Config': {'n_unique_words': 10000, 'dataset_length': 100000}}
+chunktimer_5_10000:            34.086907000 ms
+chunktimer_0_10000:            42.044067000 ms
+chunktimer_4_10000:            48.379125000 ms
+chunktimer_9_10000:            51.256415000 ms
+chunktimer_8_10000:            54.479755000 ms
+chunktimer_3_10000:            55.172433000 ms
+chunktimer_1_10000:            56.643166000 ms
+chunktimer_7_10000:            59.183913000 ms
+chunktimer_6_10000:            64.558752000 ms
+chunktimer_2_10000:            64.699012000 ms
+fit_map:            64.888085000 ms
+fit_reduce:         31.983244000 ms
+fit_sorting:        3.473128000 ms
+fit_total:          100.344457000 ms
+rust_python_function_total:         105.327925000 ms
+python_total: 119.086639999
+
+
+
+{'Config': {'n_unique_words': 10000, 'dataset_length': 1000000}}
+chunktimer_24_16:            0.413525000 ms
+chunktimer_0_41666:            250.409397000 ms
+chunktimer_12_41666:            267.098941000 ms
+chunktimer_16_41666:            310.565630000 ms
+chunktimer_8_41666:            323.513887000 ms
+chunktimer_5_41666:            331.060628000 ms
+chunktimer_10_41666:            331.202845000 ms
+chunktimer_13_41666:            335.730833000 ms
+chunktimer_6_41666:            337.108450000 ms
+chunktimer_1_41666:            337.665862000 ms
+chunktimer_15_41666:            340.208211000 ms
+chunktimer_7_41666:            347.155819000 ms
+chunktimer_11_41666:            349.485799000 ms
+chunktimer_4_41666:            350.562467000 ms
+chunktimer_2_41666:            351.722994000 ms
+chunktimer_9_41666:            352.155506000 ms
+chunktimer_22_41666:            352.219762000 ms
+chunktimer_3_41666:            353.284902000 ms
+chunktimer_17_41666:            357.836357000 ms
+chunktimer_18_41666:            360.171923000 ms
+chunktimer_21_41666:            367.905848000 ms
+chunktimer_14_41666:            374.724301000 ms
+chunktimer_20_41666:            374.735639000 ms
+chunktimer_23_41666:            378.073057000 ms
+chunktimer_19_41666:            378.460530000 ms
+fit_map:            378.899430000 ms
+fit_reduce:         208.319372000 ms
+fit_sorting:        30.119985000 ms
+fit_total:          617.338787000 ms
+rust_python_function_total:         661.106149000 ms
+python_total: 786.380976000
+
+
+
+{'Config': {'n_unique_words': 50000, 'dataset_length': 10000}}
+chunktimer_0_10000:            37.498886000 ms
+fit_map:            37.510866000 ms
+fit_reduce:         3.331029000 ms
+fit_sorting:        3.064845000 ms
+fit_total:          43.906740000 ms
+rust_python_function_total:         44.792827000 ms
+python_total: 52.917292000
+
+
+
+{'Config': {'n_unique_words': 50000, 'dataset_length': 100000}}
+chunktimer_0_10000:            40.925966000 ms
+chunktimer_9_10000:            46.121437000 ms
+chunktimer_1_10000:            47.504473000 ms
+chunktimer_8_10000:            54.689422000 ms
+chunktimer_6_10000:            54.817533000 ms
+chunktimer_2_10000:            57.932037000 ms
+chunktimer_5_10000:            60.304225000 ms
+chunktimer_4_10000:            61.461711000 ms
+chunktimer_7_10000:            67.711844000 ms
+chunktimer_3_10000:            75.032999000 ms
+fit_map:            75.440967000 ms
+fit_reduce:         37.855961000 ms
+fit_sorting:        6.285997000 ms
+fit_total:          119.582925000 ms
+rust_python_function_total:         124.300145000 ms
+python_total: 140.179462000
+
+
+
+{'Config': {'n_unique_words': 50000, 'dataset_length': 1000000}}
+chunktimer_24_16:            0.306049000 ms
+chunktimer_0_41666:            341.170823000 ms
+chunktimer_16_41666:            353.280880000 ms
+chunktimer_7_41666:            399.076506000 ms
+chunktimer_8_41666:            406.204677000 ms
+chunktimer_2_41666:            415.695338000 ms
+chunktimer_12_41666:            417.486962000 ms
+chunktimer_6_41666:            418.490038000 ms
+chunktimer_10_41666:            425.654636000 ms
+chunktimer_18_41666:            425.660642000 ms
+chunktimer_19_41666:            426.695074000 ms
+chunktimer_4_41666:            433.717198000 ms
+chunktimer_9_41666:            436.924279000 ms
+chunktimer_22_41666:            438.526253000 ms
+chunktimer_1_41666:            440.655694000 ms
+chunktimer_14_41666:            441.907172000 ms
+chunktimer_17_41666:            444.493940000 ms
+chunktimer_3_41666:            446.551610000 ms
+chunktimer_21_41666:            465.291741000 ms
+chunktimer_20_41666:            472.275414000 ms
+chunktimer_15_41666:            473.291261000 ms
+chunktimer_5_41666:            476.081616000 ms
+chunktimer_23_41666:            478.164233000 ms
+chunktimer_11_41666:            481.549779000 ms
+chunktimer_13_41666:            486.599201000 ms
+fit_map:            486.937261000 ms
+fit_reduce:         231.642965000 ms
+fit_sorting:        31.388840000 ms
+fit_total:          749.969066000 ms
+rust_python_function_total:         779.731130000 ms
+python_total: 896.622672999
+
+
+

@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::time::Instant;
 
 fn sort_vocab_lexi_inplace(vocabulary: &mut FxHashMap<String, usize>, j_indices: &mut Vec<usize>) {
     let n = vocabulary.len();
@@ -25,7 +26,7 @@ fn sort_vocab_lexi_inplace(vocabulary: &mut FxHashMap<String, usize>, j_indices:
 
 struct Partial {
     vocab: FxHashMap<String, usize>,
-    values: Vec<usize>,
+    values: Vec<i32>,
     j_indices: Vec<usize>,
     indptr: Vec<usize>,
 }
@@ -34,7 +35,7 @@ pub fn compute_count_vectorizer_fit(
     stopwords: FxHashSet<String>,
     tokenizer: regex::Regex,
     n_chunks: usize,
-) -> (FxHashMap<String, usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
+) -> (FxHashMap<String, usize>, Vec<i32>, Vec<usize>, Vec<usize>) {
     let chunk_size = (corpus.len() / n_chunks).max(1);
     // for reduction
     let identity = || Partial {
@@ -43,17 +44,21 @@ pub fn compute_count_vectorizer_fit(
         j_indices: vec![],
         indptr: vec![0],
     };
-
-    let mut result = corpus
+    let start_multithreading = Instant::now();
+    let processed_chunks: Vec<Partial> = corpus
         .par_chunks(chunk_size)
-        .map(|chunk| {
+        .enumerate()
+        .map(|(idx, chunk)| {
+            let chunk_start = Instant::now();
+            let chunksize = chunk.len();
             let mut vocab: FxHashMap<String, usize> = FxHashMap::default();
-
-            let mut values: Vec<usize> = Vec::new();
+            let mut values: Vec<i32> = Vec::new();
             let mut j_indices: Vec<usize> = Vec::new();
             let mut indptr: Vec<usize> = Vec::with_capacity(chunk.len() + 1);
             indptr.push(0);
+
             let mut feature_counter: FxHashMap<usize, usize> = FxHashMap::default();
+
             for text in chunk.iter() {
                 feature_counter.clear();
                 for m in tokenizer.find_iter(text) {
@@ -76,10 +81,14 @@ pub fn compute_count_vectorizer_fit(
                 }
                 for (&col, &count) in feature_counter.iter() {
                     j_indices.push(col);
-                    values.push(count);
+                    values.push(count as i32);
                 }
                 indptr.push(j_indices.len());
             }
+            println!(
+                "chunktimer_{idx}_{chunksize}:            {:.9} ms",
+                (chunk_start.elapsed()).as_secs_f64() * 1000.0
+            );
             Partial {
                 vocab,
                 values,
@@ -87,6 +96,11 @@ pub fn compute_count_vectorizer_fit(
                 indptr,
             }
         })
+        .collect();
+    let end_multithreading = Instant::now();
+
+    let mut result = processed_chunks
+        .into_par_iter()
         .reduce(identity, |mut a, b| {
             let mut remap = vec![0 as usize; b.vocab.len()];
             for (token, &local) in b.vocab.iter() {
@@ -100,8 +114,26 @@ pub fn compute_count_vectorizer_fit(
             a.indptr.extend(b.indptr[1..].iter().map(|&p| p + offset));
             a
         });
+    let end_singlethreading = Instant::now();
 
     sort_vocab_lexi_inplace(&mut result.vocab, &mut result.j_indices);
+    let end_sorting = Instant::now();
+    println!(
+        "fit_map:            {:.9} ms",
+        (end_multithreading - start_multithreading).as_secs_f64() * 1000.0
+    );
+    println!(
+        "fit_reduce:         {:.9} ms",
+        (end_singlethreading - end_multithreading).as_secs_f64() * 1000.0
+    );
+    println!(
+        "fit_sorting:        {:.9} ms",
+        (end_sorting - end_singlethreading).as_secs_f64() * 1000.0
+    );
+    println!(
+        "fit_total:          {:.9} ms",
+        (end_sorting - start_multithreading).as_secs_f64() * 1000.0
+    );
 
     (result.vocab, result.values, result.j_indices, result.indptr)
 }
@@ -115,8 +147,8 @@ pub fn compute_count_vectorizer_transform(
 ) -> (Vec<i32>, Vec<usize>, Vec<usize>) {
     let n_rows = corpus.len();
     let chunk_size = (n_rows / n_chunks).max(1);
+    let start_multithreading = Instant::now();
 
-    // map: each chunk -> a CSR fragment with GLOBAL columns and a local indptr (no leading 0)
     let fragments: Vec<(Vec<i32>, Vec<usize>, Vec<usize>)> = corpus
         .par_chunks(chunk_size)
         .map(|chunk| {
@@ -141,9 +173,11 @@ pub fn compute_count_vectorizer_transform(
                 }
                 indptr.push(indices.len());
             }
+
             (data, indices, indptr)
         })
         .collect();
+    let end_multithreading = Instant::now();
 
     // reduce: concatenate fragments in order, shifting each indptr by the running nnz
     let total_nnz: usize = fragments.iter().map(|(d, _, _)| d.len()).sum();
@@ -157,6 +191,15 @@ pub fn compute_count_vectorizer_transform(
         indices.extend(fi);
         indptr.extend(fp.iter().map(|&p| p + offset));
     }
+    let end_singlethreading = Instant::now();
+    println!(
+        "transform_map:            {:.9} ms",
+        (end_multithreading - start_multithreading).as_secs_f64() * 1000.0
+    );
+    println!(
+        "transform_reduce:         {:.9} ms",
+        (end_singlethreading - end_multithreading).as_secs_f64() * 1000.0
+    );
 
     (data, indices, indptr)
 }
@@ -209,4 +252,42 @@ pub fn count_vectorize_fit(
         compute_count_vectorizer_fit(corpus, stopwords, tokenizer, n_chunks);
 
     Ok(vocabulary)
+}
+
+#[pyfunction]
+#[pyo3(signature = (corpus, stopwords, token_pattern = r"(?u)\b\w\w+\b".to_string(), n_chunks = 1))]
+pub fn count_vectorize_fit_transform(
+    py: Python<'_>,
+    corpus: Vec<String>,
+    stopwords: FxHashSet<String>,
+    token_pattern: String,
+    n_chunks: usize,
+) -> PyResult<(
+    FxHashMap<String, usize>,
+    Py<PyArray1<i32>>,
+    Py<PyArray1<usize>>,
+    Py<PyArray1<usize>>,
+)> {
+    let start = Instant::now();
+    if n_chunks == 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "n_chunks must be >= 1",
+        ));
+    }
+    let tokenizer = Regex::new(&token_pattern)
+        .map_err(|e| PyValueError::new_err(format!("invalid token_pattern: {e}")))?;
+
+    let (vocabulary, data, j_indices, indptr) =
+        compute_count_vectorizer_fit(corpus, stopwords, tokenizer, n_chunks);
+
+    let data = data.into_pyarray(py).unbind();
+    let indices = j_indices.into_pyarray(py).unbind();
+    let indptr = indptr.into_pyarray(py).unbind();
+    let end = Instant::now();
+    println!(
+        "rust_python_function_total:         {:.9} ms",
+        (end - start).as_secs_f64() * 1000.0
+    );
+
+    Ok((vocabulary, data, indices, indptr))
 }
