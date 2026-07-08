@@ -1,16 +1,20 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from sklearn.preprocessing import QuantileTransformer as SklearnQuantileTransformer
+from sklearn.utils import resample
 from sklearn.utils._param_validation import (
     Interval,
     StrOptions,
-    validate_params,
 )
 from scipy import sparse
 from numbers import Integral
 
 import numpy as np
 from scipy.special import ndtri, ndtr
+from yaml import warnings
+import pandas as pd
+
+from rust_logistic import rust_fit_dense_column
 
 BOUNDS_THRESHOLD = 1e-7
 
@@ -114,7 +118,7 @@ class QuantileTransformer(SklearnQuantileTransformer):
 
         return X
 
-    ###
+    
 
     def _transform_col_normal(self, X_col, quantiles, inverse):
         """Private function to transform a single feature."""
@@ -172,3 +176,36 @@ class QuantileTransformer(SklearnQuantileTransformer):
             # identity function so we let X_col unchanged
 
         return X_col
+    
+    def _dense_fit(self, X, random_state):
+        """Compute percentiles for dense matrices.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            The data used to scale along the features axis.
+        """
+        if self.ignore_implicit_zeros:
+            warnings.warn(
+                "'ignore_implicit_zeros' takes effect only with"
+                " sparse matrix. This parameter has no effect."
+            )
+
+        n_samples, n_features = X.shape
+        references = self.references_
+
+        if self.subsample is not None and self.subsample < n_samples:
+            # Take a subsample of `X`
+            X = resample(
+                X, replace=False, n_samples=self.subsample, random_state=random_state
+            )
+
+        with ThreadPoolExecutor(max_workers=self.n_jobs) as executor:
+            cols = list(
+                executor.map(
+                    lambda i: rust_fit_dense_column(X[:, i], references),
+                    range(n_features),
+                )
+            )
+
+        self.quantiles_ = np.stack(cols, axis=1)

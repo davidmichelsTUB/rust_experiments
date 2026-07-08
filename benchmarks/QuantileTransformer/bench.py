@@ -12,18 +12,14 @@ import pandas as pd
 from pathlib import Path
 
 
-_ROWS = [
-    100,
-    1000,
-    10000,
-    100000
-]
+params = {
+    "rows" : [10000],
+    "cols" : [100],
+    "kwargs" : [{"n_quantiles" : a, "output_distribution" : b, "random_state" : 42} for a in [100] for b in ['normal', 'uniform']],
+    "order": ['C', 'F']
+}
 
-_COLS = [
-    500,
-    1000,
-    5000
-]
+
 
 def main(repeats: int = 4):
 
@@ -43,23 +39,31 @@ def main(repeats: int = 4):
         mean = sum(ts) / len(ts)
         std = statistics.stdev(ts) if len(ts) > 1 else 0.0
         return mean, std, result
-     
-    
 
-    for rows in _ROWS:
-        for cols in _COLS:
-            print(f"Rows: {rows}, Cols: {cols}")
-            X = np.random.rand(rows, cols).astype(np.float32)
+    for rows in params["rows"]:
+        for cols in params["cols"]:
+            for kwargs in params["kwargs"]:
+                print(f"Rows: {rows}, Cols: {cols}")
+                X = np.random.rand(rows, cols).astype(np.float64, order='C')
 
-            # Fit and transform using sklearn
-            sklearn_transformer = SklearnQuantileTransformer(n_quantiles=1000, output_distribution='normal', random_state=42)
-            sklearn_transformer.fit(X)
-            sklearn_mean, sklearn_std, _ = time_it(lambda: sklearn_transformer.transform(X))
+                # Fit and transform using sklearn
+                sklearn_transformer = SklearnQuantileTransformer(
+                    **kwargs
+                )
+                sklearn_transformer.fit(X)
+                sklearn_mean, sklearn_std, _ = time_it(
+                    lambda: sklearn_transformer.transform(X)
+                )
 
-            # Fit and transform using parallel implementation
-            parallel_transformer = ParallelQuantileTransformer(n_quantiles=1000, output_distribution='normal', random_state=42, n_jobs=8)
-            parallel_transformer.fit(X)
-            parallel_mean, parallel_std, _ = time_it(lambda: parallel_transformer.transform(X))
+                # Fit and transform using parallel implementation
+                parallel_transformer = ParallelQuantileTransformer(
+                    **kwargs,
+                    n_jobs=8,
+                )
+                parallel_transformer.fit(X)
+                parallel_mean, parallel_std, _ = time_it(
+                    lambda: parallel_transformer.transform(X)
+                )
 
             # Compare results
 
@@ -70,6 +74,11 @@ def main(repeats: int = 4):
                 "sklearn_std": sklearn_std,
                 "parallel_mean": parallel_mean,
                 "parallel_std": parallel_std,
+                "error_quantiles": (
+                    (sklearn_transformer.quantiles_ - parallel_transformer.quantiles_)
+                    ** 2
+                ).mean(),
+                "kwargs": kwargs,
             }
 
             if not Path(__file__).parent.joinpath("results.csv").exists():
@@ -77,7 +86,9 @@ def main(repeats: int = 4):
                 results_csv.to_csv(Path(__file__).parent / "results.csv", index=False)
             else:
                 results_csv = pd.read_csv(Path(__file__).parent / "results.csv")
-                results_csv = pd.concat([results_csv, pd.DataFrame([results])], ignore_index=True)
+                results_csv = pd.concat(
+                    [results_csv, pd.DataFrame([results])], ignore_index=True
+                )
                 results_csv.to_csv(Path(__file__).parent / "results.csv", index=False)
 
 
