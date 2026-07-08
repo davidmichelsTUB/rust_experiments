@@ -235,6 +235,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndarray-interp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e43087829efb5ec2736598e88587df286425b59df5a9ce991994cdd2c5855d3f"
+dependencies = [
+ "ndarray",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
 name = "ndarray-stats"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -531,10 +542,12 @@ dependencies = [
  "argmin",
  "argmin-math",
  "ndarray",
+ "ndarray-interp",
  "ndarray-stats",
  "numpy",
  "pyo3",
  "rayon",
+ "stack-stack",
 ]
 
 [[package]]
@@ -554,6 +567,12 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "stack-stack"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa40d7ee49cf61c4e86d88191a40d0c2e84a214c3af871f4fc57757ea8d793de"
 
 [[package]]
 name = "syn"

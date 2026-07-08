@@ -3,10 +3,15 @@ use pyo3::prelude::*;
 
 mod _binary_logistic;
 mod _multi_class_logistic;
+mod _quantile_transformer_logistic;
 pub use _binary_logistic::{compute_new_gradient_binary, compute_loss_binary, dot_sigmoid_fused_parallel, dot_argmax_binary};
 pub use _multi_class_logistic::{compute_loss_multiclass, compute_gradient_multiclass_intercept, compute_gradient_multiclass_nointercept, dot_argmax_multiclass, dot_softmax_multiclass};
 
+
 mod solvers;
+
+
+// Logistic Regression Functions
 
 #[pyfunction]
 fn binary_predict<'py>(
@@ -119,6 +124,10 @@ fn multiclass_lbfgs_fit<'py>(
     .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
     Ok(w.into_pyarray_bound(py))
 }
+
+
+// Quantile Transformer
+
 // Here where the python modulation comes in
 #[pymodule]
 fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -130,3 +139,6 @@ fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(multiclass_predict, m)?)?;
     Ok(())
 }
+
+//////////////////////////////////////////
+
