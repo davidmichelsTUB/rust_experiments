@@ -1,33 +1,47 @@
-use ndarray::{Array1, ArrayView1};
+use ndarray::parallel::prelude::*;
+use ndarray::{Array2, ArrayView1, ArrayView2, Axis};
+
 
 pub fn nanpercentile(
-    x: ArrayView1<f64>,
+    x: ArrayView2<f64>,
     references: ArrayView1<f64>,
-) -> Array1<f64> {
-    let mut quantiles = Array1::<f64>::zeros(references.len());
+) -> Array2<f64> {
+    let n_features = x.ncols();
 
-    // Collect non-NaN values
-    let mut buffer = Vec::<f64>::with_capacity(x.len());
+    let mut quantiles = Array2::<f64>::zeros((references.len(), n_features));
 
-    for &v in x.iter() {
-        if !v.is_nan() {
-            buffer.push(v);
-        }
-    }
+    let x_rows = x.nrows();
 
-    if buffer.is_empty() {
-        quantiles.fill(f64::NAN);
-        return quantiles;
-    }
+    quantiles
+        .axis_iter_mut(Axis(1))
+        .into_par_iter()
+        .enumerate()
+        .for_each(|(feature, mut output)| {
+            let mut buffer = Vec::<f64>::with_capacity(x_rows);
 
-    buffer.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+            // extract column
+            for row in 0..x_rows {
+                let v = x[(row, feature)];
+                if !v.is_nan() {
+                    buffer.push(v);
+                }
+            }
 
-    for (out, &q) in quantiles.iter_mut().zip(references.iter()) {
-        *out = percentile_sorted(&buffer, q);
-    }
+            if buffer.is_empty() {
+                output.fill(f64::NAN);
+                return;
+            }
+
+            buffer.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+            for (i, &q) in references.iter().enumerate() {
+                output[i] = percentile_sorted(&buffer, q);
+            }
+        });
 
     quantiles
 }
+
 
 #[inline(always)]
 fn percentile_sorted(values: &[f64], q: f64) -> f64 {

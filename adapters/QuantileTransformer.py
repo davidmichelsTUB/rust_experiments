@@ -12,9 +12,8 @@ from numbers import Integral
 import numpy as np
 from scipy.special import ndtri, ndtr
 from yaml import warnings
-import pandas as pd
 
-from rust_logistic import rust_fit_dense_column
+from rust_logistic import rust_fit_dense
 
 BOUNDS_THRESHOLD = 1e-7
 
@@ -200,12 +199,4 @@ class QuantileTransformer(SklearnQuantileTransformer):
                 X, replace=False, n_samples=self.subsample, random_state=random_state
             )
 
-        with ThreadPoolExecutor(max_workers=self.n_jobs) as executor:
-            cols = list(
-                executor.map(
-                    lambda i: rust_fit_dense_column(X[:, i], references),
-                    range(n_features),
-                )
-            )
-
-        self.quantiles_ = np.stack(cols, axis=1)
+        self.quantiles_ = rust_fit_dense(X, references)

@@ -9,3 +9,5 @@ CLAUDE.md
 **/*.png
 
 **/old_results.zip
+
+/playground

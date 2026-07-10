@@ -132,19 +132,19 @@ fn multiclass_lbfgs_fit<'py>(
 // Quantile Transformer
 
 #[pyfunction]
-fn rust_fit_dense_column<'py>(
+fn rust_fit_dense<'py>(
     py: Python<'py>,
-    x: PyReadonlyArray1<f64>,
+    x: PyReadonlyArray2<f64>,
     references: PyReadonlyArray1<f64>,
-) -> PyResult<Bound<'py, PyArray1<f64>>> {
+) -> PyResult<Bound<'py, PyArray2<f64>>> {
 
     let x_asarr = x.as_array();
     let references_asarr = references.as_array();
 
-    let quantiles = py.allow_threads(||_quantile_transformer_logistic::nanpercentile(
+    let quantiles = _quantile_transformer_logistic::nanpercentile(
         x_asarr,
         references_asarr,
-    ));
+    );
     Ok(quantiles.into_pyarray_bound(py))
 }
 
@@ -158,7 +158,7 @@ fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(multiclass_predict_proba, m)?)?;
     m.add_function(wrap_pyfunction!(multiclass_predict, m)?)?;
 
-    m.add_function(wrap_pyfunction!(rust_fit_dense_column, m)?)?;
+    m.add_function(wrap_pyfunction!(rust_fit_dense, m)?)?;
     Ok(())
 }
 
