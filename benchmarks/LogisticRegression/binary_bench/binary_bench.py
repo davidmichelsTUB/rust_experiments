@@ -1,6 +1,6 @@
 import sys, os
 
-sys.path.insert(0, os.path.abspath("../.."))  # project root
+sys.path.insert(0, os.path.abspath("../../../"))  # project root
 
 import numpy as np
 from sklearn.datasets import make_classification
@@ -17,17 +17,18 @@ _ROWS = [
     1000,
     10_000,
     100_000,
-    500_000,
-    1_000_000,
-    5_000_000
+    # 500_000,
+    # 1_000_000,
+    # 5_000_000
 ]
 
 _COLUMNS = [
     # 10,
     100,
+    500,
     1_000,
-    10_000,
-    100_000,
+    # 10_000,
+    # 100_000,
 ]
 
 _SKLEARN_KWARGS = {
@@ -144,8 +145,8 @@ def run_save_one_bench(
 
 
 def main():
-    for rows in _ROWS:
-        for cols in _COLUMNS:
+    for cols in _COLUMNS:
+        for rows in _ROWS:
             run_save_one_bench(rows, cols, sklearn_init_dict=_SKLEARN_KWARGS, repeats=4)
 
 if __name__ == "__main__":

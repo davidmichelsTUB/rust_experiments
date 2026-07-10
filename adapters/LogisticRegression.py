@@ -153,12 +153,13 @@ class LogisticRegression(SklearnLogisticRegression):
 
     def predict_proba(self, X):
 
-        self._check_before_predict(X)
+        # self._check_before_predict(X)
 
         if self.n_classes == 2:
             return rust_logistic.binary_predict_proba(
                 X,
                 self.coef_,
+                self.intercept_,
                 intercept=self.fit_intercept
             )
 
@@ -172,12 +173,13 @@ class LogisticRegression(SklearnLogisticRegression):
 
     def predict(self, X):
 
-        self._check_before_predict(X)
+        # self._check_before_predict(X)
 
         if self.n_classes == 2:
             return rust_logistic.binary_predict(
                 X,
                 self.coef_,
+                self.intercept_,
                 intercept=self.fit_intercept
             )
             
@@ -194,7 +196,7 @@ class LogisticRegression(SklearnLogisticRegression):
         self._check_before_fit(X, y, sample_weight)
 
         if self.n_classes == 2:
-            self.coef_ = _FIT["lbfgs"](
+            all_weights = _FIT["lbfgs"](
                 x=X,
                 y=y,
                 l1_reg=1 / self.C * self.l1_ratio,
@@ -205,6 +207,14 @@ class LogisticRegression(SklearnLogisticRegression):
                 tolerance=self.tol,
                 sample_weights=sample_weight,
             )
+            
+            if self.fit_intercept:
+                self.coef_ = all_weights[:-1]
+                self.intercept_ = all_weights[-1]
+            
+            else:
+                self.coef_ = all_weights
+                self.intercept_ = 0.0 
         else:
             self.coef_ = _FIT["multiclass_lbfgs"](
                 x=X,

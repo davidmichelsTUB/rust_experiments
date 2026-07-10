@@ -5,7 +5,7 @@ mod _binary_logistic;
 mod _multi_class_logistic;
 mod _quantile_transformer_logistic;
 pub use _binary_logistic::{
-    compute_loss_binary, compute_new_gradient_binary, dot_argmax_binary, dot_sigmoid_fused_parallel,
+    compute_loss_binary_intercept, compute_loss_binary_no_intercept, compute_new_gradient_binary_with_intercept, compute_new_gradient_binary_no_intercept, dot_argmax_binary, dot_sigmoid_fused_parallel,
 };
 pub use _multi_class_logistic::{
     compute_gradient_multiclass_intercept, compute_gradient_multiclass_nointercept,
@@ -22,9 +22,10 @@ fn binary_predict<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     w: PyReadonlyArray1<f32>,
+    bias: f32,
     intercept: bool,
 ) -> Bound<'py, PyArray1<u32>> {
-    dot_argmax_binary(x.as_array(), w.as_array(), intercept).into_pyarray_bound(py)
+    dot_argmax_binary(x.as_array(), w.as_array(),  bias, intercept).into_pyarray_bound(py)
 }
 
 #[pyfunction]
@@ -32,9 +33,10 @@ fn binary_predict_proba<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     w: PyReadonlyArray1<f32>,
+    bias: f32,
     intercept: bool,
 ) -> Bound<'py, PyArray2<f32>> {
-    dot_sigmoid_fused_parallel(x.as_array(), w.as_array(), intercept).into_pyarray_bound(py)
+    dot_sigmoid_fused_parallel(x.as_array(), w.as_array(), bias, intercept).into_pyarray_bound(py)
 }
 
 #[pyfunction]
@@ -151,6 +153,8 @@ fn rust_fit_dense<'py>(
 // Here where the python modulation comes in
 #[pymodule]
 fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
+
+    // Logistic Regression Functions
     m.add_function(wrap_pyfunction!(binary_predict, m)?)?;
     m.add_function(wrap_pyfunction!(binary_predict_proba, m)?)?;
     m.add_function(wrap_pyfunction!(binary_lbfgs_fit, m)?)?;
@@ -158,6 +162,7 @@ fn rust_logistic(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(multiclass_predict_proba, m)?)?;
     m.add_function(wrap_pyfunction!(multiclass_predict, m)?)?;
 
+    // Quantile Transformer Functions
     m.add_function(wrap_pyfunction!(rust_fit_dense, m)?)?;
     Ok(())
 }
