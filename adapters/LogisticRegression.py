@@ -218,6 +218,7 @@ class LogisticRegression(SklearnLogisticRegression):
         else:
             all_weights = _FIT["multiclass_lbfgs"](
                 x=X,
+                x_t=X.T,
                 y=y,
                 l1_reg=1 / self.C * self.l1_ratio,
                 l2_reg= 1 / self.C * (1 - self.l1_ratio),

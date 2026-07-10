@@ -129,6 +129,7 @@ pub fn fit_binary<'a>(
 ////////////////////////////////////////////////////////////////
 struct MultiClassLogisticProblem<'a> {
     x: ArrayView2<'a, f32>,
+    x_t: ArrayView2<'a, f32>,
     y: ArrayView1<'a, u32>,
     sample_weights: Option<ArrayView1<'a, f32>>,
     l1_reg: f32,
@@ -147,6 +148,7 @@ struct MultiClassLogisticProblem<'a> {
         Option<ArrayView1<f32>>,
     ) -> f32,
     grad_fn: fn(
+        ArrayView2<f32>,
         ArrayView2<f32>,
         ArrayView1<u32>,
         ArrayView1<f32>,
@@ -194,6 +196,7 @@ impl<'a> Gradient for MultiClassLogisticProblem<'a> {
 
         Ok((self.grad_fn)(
             self.x,
+            self.x_t,
             self.y,
             w.view(),
             self.n_classes,
@@ -208,6 +211,7 @@ impl<'a> Gradient for MultiClassLogisticProblem<'a> {
 
 pub fn fit_multiclass<'a>(
     x: ArrayView2<'a, f32>,
+    x_t: ArrayView2<'a, f32>,
     y: ArrayView1<'a, u32>,
     l1_reg: f32,
     l2_reg: f32,
@@ -221,6 +225,7 @@ pub fn fit_multiclass<'a>(
 ) -> Result<Array1<f32>, Error> {
     let problem = MultiClassLogisticProblem {
         x,
+        x_t,
         y,
         l1_reg,
         l2_reg,

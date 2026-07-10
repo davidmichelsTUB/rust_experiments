@@ -116,10 +116,11 @@ fn multiclass_predict<'py>(
 }
 
 #[pyfunction]
-#[pyo3(signature = (x, y, l1_reg, l2_reg, n_classes, n_features, intercept, max_iters, m, tolerance, sample_weights=None))]
+#[pyo3(signature = (x, x_t, y, l1_reg, l2_reg, n_classes, n_features, intercept, max_iters, m, tolerance, sample_weights=None))]
 fn multiclass_lbfgs_fit<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
+    x_t: PyReadonlyArray2<f32>,
     y: PyReadonlyArray1<u32>,
     l1_reg: f32,
     l2_reg: f32,
@@ -137,6 +138,7 @@ fn multiclass_lbfgs_fit<'py>(
     };
     let w = solvers::argmin::lbfgs::fit_multiclass(
         x.as_array(),
+        x_t.as_array(),
         y.as_array(),
         l1_reg,
         l2_reg,

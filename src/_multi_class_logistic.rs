@@ -286,6 +286,7 @@ pub fn compute_loss_multiclass_nointercept(
 
 pub fn compute_gradient_multiclass_nointercept(
     x: ArrayView2<f32>,
+    x_t: ArrayView2<f32>,
     y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     n_classes: u32,
@@ -326,7 +327,7 @@ pub fn compute_gradient_multiclass_nointercept(
                     row[label as usize] -= 1.0;
                     row *= sw;
                 });
-            x.t().dot(&scores)
+            x_t.dot(&scores)
         }
 
         None => {
@@ -352,7 +353,7 @@ pub fn compute_gradient_multiclass_nointercept(
                     }
                     row[label as usize] -= 1.0;
                 });
-            x.t().dot(&scores)
+            x_t.dot(&scores)
         }
     };
 
@@ -367,6 +368,7 @@ pub fn compute_gradient_multiclass_nointercept(
 
 pub fn compute_gradient_multiclass_intercept(
     x: ArrayView2<f32>,
+    x_t: ArrayView2<f32>,
     y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     n_classes: u32,
@@ -463,7 +465,7 @@ pub fn compute_gradient_multiclass_intercept(
     // weight gradient directly into second part
     let mut weight_grad = grad.slice_mut(s![n_classes..]);
 
-    let weight_grad_matrix = x.t().dot(&scores);
+    let weight_grad_matrix = x_t.dot(&scores);
 
     for ((dst, &g), &wi) in weight_grad
         .iter_mut()
