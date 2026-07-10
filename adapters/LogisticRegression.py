@@ -168,7 +168,7 @@ class LogisticRegression(SklearnLogisticRegression):
                 X,
                 self.coef_,
                 intercept=self.fit_intercept,
-                n_classes=self.n_classes
+                bias=self.intercept_ if self.fit_intercept else None,
             )
 
     def predict(self, X):
@@ -188,7 +188,8 @@ class LogisticRegression(SklearnLogisticRegression):
                 X,
                 self.coef_,
                 intercept=self.fit_intercept,
-                n_classes=self.n_classes
+                n_classes=self.n_classes,
+                bias=self.intercept_ if self.fit_intercept else None
             )
 
     def fit(self, X, y, sample_weight=None):
@@ -216,7 +217,7 @@ class LogisticRegression(SklearnLogisticRegression):
                 self.coef_ = all_weights
                 self.intercept_ = 0.0 
         else:
-            self.coef_ = _FIT["multiclass_lbfgs"](
+            all_weights = _FIT["multiclass_lbfgs"](
                 x=X,
                 y=y,
                 l1_reg=1 / self.C * self.l1_ratio,
@@ -229,3 +230,13 @@ class LogisticRegression(SklearnLogisticRegression):
                 tolerance=self.tol,
                 sample_weights=sample_weight,
             )
+
+            
+
+            if self.fit_intercept:
+                self.intercept_ = all_weights[:self.n_classes]
+                self.coef_ = all_weights[self.n_classes:].reshape((self.n_features, self.n_classes))
+            
+            else:
+                self.intercept_ = 0.0
+                self.coef_ = all_weights.reshape((self.n_features, self.n_classes))

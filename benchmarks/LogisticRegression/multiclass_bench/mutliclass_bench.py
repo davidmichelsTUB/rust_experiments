@@ -1,6 +1,6 @@
 import sys, os
 
-sys.path.insert(0, os.path.abspath("../.."))  # project root
+sys.path.insert(0, os.path.abspath("../../../"))  # project root
 
 import numpy as np
 from sklearn.datasets import make_classification
@@ -13,21 +13,17 @@ from pathlib import Path
 
 
 _ROWS = [
-    100,
+    500,
     1000,
     10_000,
     100_000,
-    500_000,
-    1_000_000,
-    5_000_000
 ]
 
 _COLUMNS = [
     # 10,
     100,
+    500,
     1_000,
-    10_000,
-    100_000,
 ]
 
 _CLASSES = [
@@ -151,9 +147,10 @@ def run_save_one_bench(
 
 
 def main():
-    for rows in _ROWS:
+
+    for classes in _CLASSES:
         for cols in _COLUMNS:
-            for classes in _CLASSES:
+            for rows in _ROWS:
                 run_save_one_bench(rows, cols, classes, sklearn_init_dict=_SKLEARN_KWARGS, repeats=4)
 
 if __name__ == "__main__":

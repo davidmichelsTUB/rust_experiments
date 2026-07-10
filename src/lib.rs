@@ -9,7 +9,7 @@ pub use _binary_logistic::{
 };
 pub use _multi_class_logistic::{
     compute_gradient_multiclass_intercept, compute_gradient_multiclass_nointercept,
-    compute_loss_multiclass, dot_argmax_multiclass, dot_softmax_multiclass,
+    compute_loss_multiclass_intercept, compute_loss_multiclass_nointercept, dot_argmax_multiclass_intercept, dot_softmax_multiclass_intercept, dot_argmax_multiclass_nointercept, dot_softmax_multiclass_nointercept,
 };
 pub use _quantile_transformer_logistic::nanpercentile;
 
@@ -73,25 +73,47 @@ fn binary_lbfgs_fit<'py>(
 }
 ///////////////////////////////////////////
 #[pyfunction]
+#[pyo3(signature = (x, w, intercept, bias=None))]
 fn multiclass_predict_proba<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
-    w: PyReadonlyArray1<f32>,
+    w: PyReadonlyArray2<f32>,
     intercept: bool,
-    n_classes: u32,
+    bias: Option<PyReadonlyArray1<f32>>,
 ) -> Bound<'py, PyArray2<f32>> {
-    dot_softmax_multiclass(x.as_array(), w.as_array(), intercept, n_classes).into_pyarray_bound(py)
+    match intercept {
+        true => {
+            let bias_view = match bias {
+                Some(ref b) => Some(b.as_array()),
+                None => None,
+            };
+            dot_softmax_multiclass_intercept(x.as_array(), w.as_array(), bias_view.unwrap()).into_pyarray_bound(py)
+        }
+        false => dot_softmax_multiclass_nointercept(x.as_array(), w.as_array()).into_pyarray_bound(py)
+    }
 }
 
 #[pyfunction]
+#[pyo3(signature = (x, w, intercept, n_classes, bias=None))]
 fn multiclass_predict<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
-    w: PyReadonlyArray1<f32>,
+    w: PyReadonlyArray2<f32>,
     intercept: bool,
     n_classes: u32,
+    bias: Option<PyReadonlyArray1<f32>>
 ) -> Bound<'py, PyArray1<u32>> {
-    dot_argmax_multiclass(x.as_array(), w.as_array(), intercept, n_classes).into_pyarray_bound(py)
+
+    match intercept {
+        true => {
+            let bias_view = match bias {
+                Some(ref b) => Some(b.as_array()),
+                None => None,
+            };
+            dot_argmax_multiclass_intercept(x.as_array(), w.as_array(), bias_view.unwrap(), n_classes).into_pyarray_bound(py)
+        }
+        false => dot_argmax_multiclass_nointercept(x.as_array(), w.as_array(), n_classes).into_pyarray_bound(py),
+    }
 }
 
 #[pyfunction]
