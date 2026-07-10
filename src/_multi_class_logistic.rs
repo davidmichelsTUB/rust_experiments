@@ -25,25 +25,25 @@ pub fn dot_argmax_multiclass_nointercept(x: ArrayView2<f32>, w: ArrayView2<f32>)
 
             *out_i = MaybeUninit::new(best_idx);
         });
+    
+
 
     unsafe { out.assume_init() }
 }
 
-pub fn dot_argmax_multiclass_intercept(
-    x: ArrayView2<f32>,
-    w: ArrayView2<f32>,
-    bias: ArrayView1<f32>,
-) -> Array1<u32> {
-    let mut out = Array1::<u32>::uninit(x.nrows());
+pub fn dot_argmax_multiclass_intercept(x: ArrayView2<f32>, w: ArrayView2<f32>, bias: ArrayView1<f32>) -> Array1<u32> {
+    let mut out = Array1::<u32>::uninit(x.shape()[0]);
 
     let mut result = x.dot(&w);
-    result += &bias;
 
     out.as_slice_mut()
         .unwrap()
         .par_iter_mut()
-        .zip(result.axis_iter(Axis(0)).into_par_iter())
-        .for_each(|(out_i, z)| {
+        .zip(result.axis_iter_mut(Axis(0)).into_par_iter())
+        .for_each(|(out_i, mut z)| {
+
+            z += &bias; 
+
             let mut best_idx = 0;
             let mut best_val = z[0];
 
@@ -56,12 +56,15 @@ pub fn dot_argmax_multiclass_intercept(
 
             *out_i = MaybeUninit::new(best_idx);
         });
+    
+
 
     unsafe { out.assume_init() }
 }
 
 pub fn dot_softmax_multiclass_nointercept(x: ArrayView2<f32>, w: ArrayView2<f32>) -> Array2<f32> {
     let mut score = x.dot(&w);
+    
 
     score
         .axis_iter_mut(Axis(0))
@@ -455,11 +458,13 @@ pub fn compute_gradient_multiclass_intercept(
 
     let mut grad = Array1::<f32>::zeros(w.len());
 
-    // bias gradient directly into first part
-    let mut bias_grad = grad.slice_mut(s![..n_classes]);
 
-    for (dst, src) in bias_grad.iter_mut().zip(scores.sum_axis(Axis(0))) {
-        *dst = src * inv_sample_weights_sum;
+    for c in 0..n_classes {
+        let mut sum = 0.0;
+        for row in scores.axis_iter(Axis(0)) {
+            sum += row[c];
+        }
+        grad[c] = sum * inv_sample_weights_sum;
     }
 
     // weight gradient directly into second part
