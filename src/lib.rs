@@ -94,13 +94,12 @@ fn multiclass_predict_proba<'py>(
 }
 
 #[pyfunction]
-#[pyo3(signature = (x, w, intercept, n_classes, bias=None))]
+#[pyo3(signature = (x, w, intercept, bias=None))]
 fn multiclass_predict<'py>(
     py: Python<'py>,
     x: PyReadonlyArray2<f32>,
     w: PyReadonlyArray2<f32>,
     intercept: bool,
-    n_classes: u32,
     bias: Option<PyReadonlyArray1<f32>>
 ) -> Bound<'py, PyArray1<u32>> {
 
@@ -110,9 +109,9 @@ fn multiclass_predict<'py>(
                 Some(ref b) => Some(b.as_array()),
                 None => None,
             };
-            dot_argmax_multiclass_intercept(x.as_array(), w.as_array(), bias_view.unwrap(), n_classes).into_pyarray_bound(py)
+            dot_argmax_multiclass_intercept(x.as_array(), w.as_array(), bias_view.unwrap()).into_pyarray_bound(py)
         }
-        false => dot_argmax_multiclass_nointercept(x.as_array(), w.as_array(), n_classes).into_pyarray_bound(py),
+        false => dot_argmax_multiclass_nointercept(x.as_array(), w.as_array()).into_pyarray_bound(py),
     }
 }
 

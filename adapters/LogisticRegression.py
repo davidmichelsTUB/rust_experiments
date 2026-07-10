@@ -188,7 +188,6 @@ class LogisticRegression(SklearnLogisticRegression):
                 X,
                 self.coef_,
                 intercept=self.fit_intercept,
-                n_classes=self.n_classes,
                 bias=self.intercept_ if self.fit_intercept else None
             )
 
