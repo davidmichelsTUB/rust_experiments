@@ -67,9 +67,9 @@ class LogisticRegression(SklearnLogisticRegression):
         if X.ndim != 2:
             raise ValueError("X must be a 2D array.")
 
-        if self.coef_.flags["C_CONTIGUOUS"] is False:
+        if self.coef_.flags["F_CONTIGUOUS"] is False:
             raise ValueError(
-                "The coefficient array is not C-contiguous. Please ensure that the coefficients are stored in a C-contiguous manner... Fit again or convert the array to C-contiguous format before calling predict or predict_proba."
+                "The coefficient array is not F-contiguous. Please ensure that the coefficients are stored in a Fortran-contiguous manner... Fit again or convert the array to Fortran-contiguous format before calling predict or predict_proba."
             )
 
         if self.coef_.dtype != np.float32:
@@ -235,8 +235,8 @@ class LogisticRegression(SklearnLogisticRegression):
 
             if self.fit_intercept:
                 self.intercept_ = all_weights[:self.n_classes]
-                self.coef_ = all_weights[self.n_classes:].reshape((self.n_features, self.n_classes))
+                self.coef_ = all_weights[self.n_classes:].reshape((self.n_features, self.n_classes), order="F")
             
             else:
                 self.intercept_ = 0.0
-                self.coef_ = all_weights.reshape((self.n_features, self.n_classes))
+                self.coef_ = all_weights.reshape((self.n_features, self.n_classes), order="F")

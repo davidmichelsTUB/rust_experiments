@@ -13,20 +13,26 @@ from pathlib import Path
 
 
 _ROWS = [
+    # 100,
+    # 1000,
+    # 10_000,
+    # 100_000,
+    # 500_000,
+    # 1_000_000,
+    # 5_000_000
     100,
     1000,
     10_000,
     100_000,
     500_000,
     1_000_000,
-    5_000_000
 ]
 
 _COLUMNS = [
     # 10,
     100,
-    500,
-    1_000,
+    # 500,
+    # 1_000,
 ]
 
 _CLASSES = [
@@ -40,7 +46,7 @@ _SKLEARN_KWARGS = {
         "l1_ratio" : 0.0,
         "dual" : False,
         "tol" : 0.0001,
-        "fit_intercept" : True,
+        "fit_intercept" : False,
         "intercept_scaling" : 1,
         "class_weight" : None,
         "random_state" : 42,

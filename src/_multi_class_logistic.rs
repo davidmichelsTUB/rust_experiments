@@ -1,77 +1,7 @@
 use ndarray::parallel::prelude::*;
 use ndarray::s;
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::mem::MaybeUninit;
-
-#[inline]
-fn fill_multiclass_logits<SX, SW>(
-    x_row: &ArrayBase<SX, Ix1>,
-    w_base: &ArrayBase<SW, Ix2>,
-    bias: Option<ArrayView1<f32>>,
-    logits: &mut [f32],
-) where
-    SX: Data<Elem = f32>,
-    SW: Data<Elem = f32>,
-{
-    logits.fill(0.0);
-
-    for (feature_idx, &x_value) in x_row.iter().enumerate() {
-        let w_row = w_base.row(feature_idx);
-
-        for (logit, &weight) in logits.iter_mut().zip(w_row.iter()) {
-            *logit += x_value * weight;
-        }
-    }
-
-    if let Some(bias) = bias {
-        for (logit, &bias_value) in logits.iter_mut().zip(bias.iter()) {
-            *logit += bias_value;
-        }
-    }
-}
-
-#[inline]
-fn softmax_in_place(row: &mut [f32]) {
-    let mut max = f32::NEG_INFINITY;
-
-    for &value in row.iter() {
-        if value > max {
-            max = value;
-        }
-    }
-
-    let mut sum = 0.0;
-
-    for value in row.iter_mut() {
-        *value = (*value - max).exp();
-        sum += *value;
-    }
-
-    let inv_sum = 1.0 / sum;
-
-    for value in row.iter_mut() {
-        *value *= inv_sum;
-    }
-}
-
-#[inline]
-fn row_log_loss(row: &[f32], label: usize) -> f32 {
-    let mut max = f32::NEG_INFINITY;
-
-    for &value in row.iter() {
-        if value > max {
-            max = value;
-        }
-    }
-
-    let mut sum = 0.0;
-
-    for &value in row.iter() {
-        sum += (value - max).exp();
-    }
-
-    max + sum.ln() - row[label]
-}
 
 pub fn dot_argmax_multiclass_nointercept(x: ArrayView2<f32>, w: ArrayView2<f32>) -> Array1<u32> {
     let mut out = Array1::<u32>::uninit(x.shape()[0]);
@@ -95,25 +25,25 @@ pub fn dot_argmax_multiclass_nointercept(x: ArrayView2<f32>, w: ArrayView2<f32>)
 
             *out_i = MaybeUninit::new(best_idx);
         });
-    
-
 
     unsafe { out.assume_init() }
 }
 
-pub fn dot_argmax_multiclass_intercept(x: ArrayView2<f32>, w: ArrayView2<f32>, bias: ArrayView1<f32>) -> Array1<u32> {
-    let mut out = Array1::<u32>::uninit(x.shape()[0]);
+pub fn dot_argmax_multiclass_intercept(
+    x: ArrayView2<f32>,
+    w: ArrayView2<f32>,
+    bias: ArrayView1<f32>,
+) -> Array1<u32> {
+    let mut out = Array1::<u32>::uninit(x.nrows());
 
     let mut result = x.dot(&w);
+    result += &bias;
 
     out.as_slice_mut()
         .unwrap()
         .par_iter_mut()
-        .zip(result.axis_iter_mut(Axis(0)).into_par_iter())
-        .for_each(|(out_i, mut z)| {
-
-            z += &bias; 
-
+        .zip(result.axis_iter(Axis(0)).into_par_iter())
+        .for_each(|(out_i, z)| {
             let mut best_idx = 0;
             let mut best_val = z[0];
 
@@ -126,15 +56,12 @@ pub fn dot_argmax_multiclass_intercept(x: ArrayView2<f32>, w: ArrayView2<f32>, b
 
             *out_i = MaybeUninit::new(best_idx);
         });
-    
-
 
     unsafe { out.assume_init() }
 }
 
 pub fn dot_softmax_multiclass_nointercept(x: ArrayView2<f32>, w: ArrayView2<f32>) -> Array2<f32> {
     let mut score = x.dot(&w);
-    
 
     score
         .axis_iter_mut(Axis(0))
@@ -226,39 +153,60 @@ pub fn compute_loss_multiclass_intercept(
         .map(|&wi| l1_reg * wi.abs() + 0.5 * l2_reg * wi * wi)
         .sum::<f32>();
 
-    let w_base = w_base
-        .to_shape((n_features as usize, n_classes as usize))
-        .unwrap();
+    let mut score = x.dot(
+        &w_base
+            .to_shape((n_classes as usize, n_features as usize))
+            .unwrap()
+            .reversed_axes(),
+    );
+    score += &bias;
 
     let log_loss = match sample_weights {
-        Some(weights) => x
+        Some(weights) => score
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(y.as_slice().unwrap())
             .zip(weights.as_slice().unwrap())
-            .fold(
-                || (0.0f32, vec![0.0f32; n_classes as usize]),
-                |(acc, mut logits), ((x_row, &label), &sw)| {
-                    fill_multiclass_logits(&x_row, &w_base, Some(bias), &mut logits);
-                    let row_loss = row_log_loss(&logits, label as usize) * sw;
-                    (acc + row_loss, logits)
-                },
-            )
-            .map(|(acc, _)| acc)
+            .map(|((row, &label), &sw)| {
+                let mut max = f32::NEG_INFINITY;
+
+                for &v in row {
+                    if v > max {
+                        max = v;
+                    }
+                }
+
+                let mut sum: f32 = 0.0;
+                for &v in row {
+                    sum += (v - max).exp();
+                }
+
+                let log_sum_exp = max + sum.ln();
+
+                (log_sum_exp - row[label as usize]) * sw
+            })
             .sum::<f32>(),
-        None => x
+        None => score
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(y.as_slice().unwrap())
-            .fold(
-                || (0.0f32, vec![0.0f32; n_classes as usize]),
-                |(acc, mut logits), (x_row, &label)| {
-                    fill_multiclass_logits(&x_row, &w_base, Some(bias), &mut logits);
-                    let row_loss = row_log_loss(&logits, label as usize);
-                    (acc + row_loss, logits)
-                },
-            )
-            .map(|(acc, _)| acc)
+            .map(|(row, &label)| {
+                let mut max = f32::NEG_INFINITY;
+                for &v in row {
+                    if v > max {
+                        max = v;
+                    }
+                }
+
+                let mut sum: f32 = 0.0;
+                for &v in row {
+                    sum += (v - max).exp();
+                }
+
+                let log_sum_exp = max + sum.ln();
+
+                log_sum_exp - row[label as usize]
+            })
             .sum::<f32>(),
     };
 
@@ -276,9 +224,11 @@ pub fn compute_loss_multiclass_nointercept(
     inv_sample_weights_sum: f32,
     sample_weights: Option<ArrayView1<f32>>,
 ) -> f32 {
-    let w = w
-        .to_shape((n_features as usize, n_classes as usize))
-        .unwrap();
+    let scores = x.dot(
+        &w.to_shape((n_classes as usize, n_features as usize))
+            .unwrap()
+            .reversed_axes(),
+    );
 
     let reg = w
         .iter()
@@ -286,34 +236,50 @@ pub fn compute_loss_multiclass_nointercept(
         .sum::<f32>();
 
     let log_loss = match sample_weights {
-        Some(weights) => x
+        Some(weights) => scores
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(y.as_slice().unwrap())
             .zip(weights.as_slice().unwrap())
-            .fold(
-                || (0.0f32, vec![0.0f32; n_classes as usize]),
-                |(acc, mut logits), ((x_row, &label), &sw)| {
-                    fill_multiclass_logits(&x_row, &w, None, &mut logits);
-                    let row_loss = row_log_loss(&logits, label as usize) * sw;
-                    (acc + row_loss, logits)
-                },
-            )
-            .map(|(acc, _)| acc)
+            .map(|((row, &label), &sw)| {
+                let mut max = f32::NEG_INFINITY;
+                for &v in row {
+                    if v > max {
+                        max = v;
+                    }
+                }
+
+                let mut sum: f32 = 0.0;
+                for &v in row {
+                    sum += (v - max).exp();
+                }
+
+                let log_sum_exp = max + sum.ln();
+
+                (log_sum_exp - row[label as usize]) * sw
+            })
             .sum::<f32>(),
-        None => x
+        None => scores
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(y.as_slice().unwrap())
-            .fold(
-                || (0.0f32, vec![0.0f32; n_classes as usize]),
-                |(acc, mut logits), (x_row, &label)| {
-                    fill_multiclass_logits(&x_row, &w, None, &mut logits);
-                    let row_loss = row_log_loss(&logits, label as usize);
-                    (acc + row_loss, logits)
-                },
-            )
-            .map(|(acc, _)| acc)
+            .map(|(row, &label)| {
+                let mut max = f32::NEG_INFINITY;
+                for &v in row {
+                    if v > max {
+                        max = v;
+                    }
+                }
+
+                let mut sum: f32 = 0.0;
+                for &v in row {
+                    sum += (v - max).exp();
+                }
+
+                let log_sum_exp = max + sum.ln();
+
+                log_sum_exp - row[label as usize]
+            })
             .sum::<f32>(),
     };
 
@@ -322,7 +288,7 @@ pub fn compute_loss_multiclass_nointercept(
 
 pub fn compute_gradient_multiclass_nointercept(
     x: ArrayView2<f32>,
-    _x_t: ArrayView2<f32>,
+    x_t: ArrayView2<f32>,
     y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     n_classes: u32,
@@ -332,95 +298,84 @@ pub fn compute_gradient_multiclass_nointercept(
     inv_sample_weights_sum: f32,
     sample_weights: Option<ArrayView1<f32>>,
 ) -> Array1<f32> {
-    let n_classes = n_classes as usize;
-    let n_features = n_features as usize;
-    let weights_len = n_features * n_classes;
-    let w = w.to_shape((n_features, n_classes)).unwrap();
+    let mut scores = x.dot(
+        &w.to_shape((n_classes as usize, n_features as usize))
+            .unwrap()
+            .reversed_axes(),
+    );
 
-    let (_, mut weight_grad) = match sample_weights {
-        Some(weights) => x
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(y.as_slice().unwrap())
-            .zip(weights.as_slice().unwrap())
-            .fold(
-                || (vec![0.0f32; weights_len], vec![0.0f32; n_classes]),
-                |(mut weight_grad, mut logits), ((x_row, &label), &sw)| {
-                    fill_multiclass_logits(&x_row, &w, None, &mut logits);
-                    softmax_in_place(&mut logits);
-                    logits[label as usize] -= 1.0;
+    let loss_grad = match sample_weights {
+        Some(weights) => {
+            scores
+                .axis_iter_mut(Axis(0))
+                .into_par_iter()
+                .zip(y.as_slice().unwrap())
+                .zip(weights.as_slice().unwrap())
+                .for_each(|((mut row, &label), &sw)| {
+                    let mut max = f32::NEG_INFINITY;
 
-                    for value in logits.iter_mut() {
-                        *value *= sw;
-                    }
-
-                    for (feature_idx, &x_value) in x_row.iter().enumerate() {
-                        let base = feature_idx * n_classes;
-
-                        for class_idx in 0..n_classes {
-                            weight_grad[base + class_idx] += x_value * logits[class_idx];
+                    for &v in row.iter() {
+                        if v > max {
+                            max = v;
                         }
                     }
-
-                    (weight_grad, logits)
-                },
-            )
-            .reduce(
-                || (vec![0.0f32; weights_len], vec![0.0f32; n_classes]),
-                |mut left, right| {
-                    for (dst, src) in left.0.iter_mut().zip(right.0.iter()) {
-                        *dst += *src;
+                    let mut sum: f32 = 0.0;
+                    for v in row.iter_mut() {
+                        *v = (*v - max).exp();
+                        sum += *v;
                     }
-                    left
-                },
-            ),
-        None => x
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(y.as_slice().unwrap())
-            .fold(
-                || (vec![0.0f32; weights_len], vec![0.0f32; n_classes]),
-                |(mut weight_grad, mut logits), (x_row, &label)| {
-                    fill_multiclass_logits(&x_row, &w, None, &mut logits);
-                    softmax_in_place(&mut logits);
-                    logits[label as usize] -= 1.0;
+                    for v in row.iter_mut() {
+                        *v /= sum;
+                    }
+                    row[label as usize] -= 1.0;
+                    row *= sw;
+                });
+            x_t.dot(&scores)
+        }
 
-                    for (feature_idx, &x_value) in x_row.iter().enumerate() {
-                        let base = feature_idx * n_classes;
+        None => {
+            scores
+                .axis_iter_mut(Axis(0))
+                .into_par_iter()
+                .zip(y.as_slice().unwrap())
+                .for_each(|(mut row, &label)| {
+                    let mut max = f32::NEG_INFINITY;
 
-                        for class_idx in 0..n_classes {
-                            weight_grad[base + class_idx] += x_value * logits[class_idx];
+                    for &v in row.iter() {
+                        if v > max {
+                            max = v;
                         }
                     }
-
-                    (weight_grad, logits)
-                },
-            )
-            .reduce(
-                || (vec![0.0f32; weights_len], vec![0.0f32; n_classes]),
-                |mut left, right| {
-                    for (dst, src) in left.0.iter_mut().zip(right.0.iter()) {
-                        *dst += *src;
+                    let mut sum: f32 = 0.0;
+                    for v in row.iter_mut() {
+                        *v = (*v - max).exp();
+                        sum += *v;
                     }
-                    left
-                },
-            ),
+                    for v in row.iter_mut() {
+                        *v /= sum;
+                    }
+                    row[label as usize] -= 1.0;
+                });
+            x_t.dot(&scores)
+        }
     };
 
-    for (g, &wi) in weight_grad.iter_mut().zip(w.iter()) {
-        *g += l1_reg * wi.signum() + l2_reg * wi;
+    let mut grad = Array1::<f32>::zeros(w.len());
+
+    for ((dst, &g), &wi) in grad
+        .iter_mut()
+        .zip(loss_grad.t().iter())
+        .zip(w.iter())
+    {
+        *dst = (g + l1_reg * wi.signum() + l2_reg * wi) * inv_sample_weights_sum;
     }
 
-    for g in weight_grad.iter_mut() {
-        *g *= inv_sample_weights_sum;
-    }
-
-    Array1::from_vec(weight_grad)
+    grad
 }
 
 pub fn compute_gradient_multiclass_intercept(
     x: ArrayView2<f32>,
-    _x_t: ArrayView2<f32>,
+    x_t: ArrayView2<f32>,
     y: ArrayView1<u32>,
     w: ArrayView1<f32>,
     n_classes: u32,
@@ -432,131 +387,105 @@ pub fn compute_gradient_multiclass_intercept(
 ) -> Array1<f32> {
     let n_classes = n_classes as usize;
     let n_features = n_features as usize;
-    let weights_len = n_features * n_classes;
 
     let (bias, w_base) = (w.slice(s![..n_classes]), w.slice(s![n_classes..]));
 
-    let w_base = w_base.to_shape((n_features, n_classes)).unwrap();
+    let mut scores = x.dot(
+        &w_base
+            .to_shape((n_classes, n_features))
+            .unwrap()
+            .reversed_axes(),
+    );
 
-    let (bias_grad, mut weight_grad, _) = match sample_weights {
-        Some(weights) => x
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(y.as_slice().unwrap())
-            .zip(weights.as_slice().unwrap())
-            .fold(
-                || {
-                    (
-                        vec![0.0f32; n_classes],
-                        vec![0.0f32; weights_len],
-                        vec![0.0f32; n_classes],
-                    )
-                },
-                |(mut bias_grad, mut weight_grad, mut logits), ((x_row, &label), &sw)| {
-                    fill_multiclass_logits(&x_row, &w_base, Some(bias), &mut logits);
-                    softmax_in_place(&mut logits);
-                    logits[label as usize] -= 1.0;
+    scores += &bias;
 
-                    for value in logits.iter_mut() {
-                        *value *= sw;
-                    }
+    match sample_weights {
+        Some(weights) => {
+            scores
+                .axis_iter_mut(Axis(0))
+                .into_par_iter()
+                .zip(y.as_slice().unwrap())
+                .zip(weights.as_slice().unwrap())
+                .for_each(|((mut row, &label), &sw)| {
+                    let mut max = f32::NEG_INFINITY;
 
-                    for (dst, &value) in bias_grad.iter_mut().zip(logits.iter()) {
-                        *dst += value;
-                    }
-
-                    for (feature_idx, &x_value) in x_row.iter().enumerate() {
-                        let base = feature_idx * n_classes;
-
-                        for class_idx in 0..n_classes {
-                            weight_grad[base + class_idx] += x_value * logits[class_idx];
+                    for &v in row.iter() {
+                        if v > max {
+                            max = v;
                         }
                     }
 
-                    (bias_grad, weight_grad, logits)
-                },
-            )
-            .reduce(
-                || {
-                    (
-                        vec![0.0f32; n_classes],
-                        vec![0.0f32; weights_len],
-                        vec![0.0f32; n_classes],
-                    )
-                },
-                |mut left, right| {
-                    for (dst, src) in left.0.iter_mut().zip(right.0.iter()) {
-                        *dst += *src;
-                    }
-                    for (dst, src) in left.1.iter_mut().zip(right.1.iter()) {
-                        *dst += *src;
-                    }
-                    left
-                },
-            ),
-        None => x
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(y.as_slice().unwrap())
-            .fold(
-                || {
-                    (
-                        vec![0.0f32; n_classes],
-                        vec![0.0f32; weights_len],
-                        vec![0.0f32; n_classes],
-                    )
-                },
-                |(mut bias_grad, mut weight_grad, mut logits), (x_row, &label)| {
-                    fill_multiclass_logits(&x_row, &w_base, Some(bias), &mut logits);
-                    softmax_in_place(&mut logits);
-                    logits[label as usize] -= 1.0;
+                    let mut sum = 0.0;
 
-                    for (dst, &value) in bias_grad.iter_mut().zip(logits.iter()) {
-                        *dst += value;
+                    for v in row.iter_mut() {
+                        *v = (*v - max).exp();
+                        sum += *v;
                     }
 
-                    for (feature_idx, &x_value) in x_row.iter().enumerate() {
-                        let base = feature_idx * n_classes;
+                    let inv_sum = 1.0 / sum;
 
-                        for class_idx in 0..n_classes {
-                            weight_grad[base + class_idx] += x_value * logits[class_idx];
+                    for v in row.iter_mut() {
+                        *v *= inv_sum;
+                    }
+
+                    row[label as usize] -= 1.0;
+                    row *= sw;
+                });
+        }
+
+        None => {
+            scores
+                .axis_iter_mut(Axis(0))
+                .into_par_iter()
+                .zip(y.as_slice().unwrap())
+                .for_each(|(mut row, &label)| {
+                    let mut max = f32::NEG_INFINITY;
+
+                    for &v in row.iter() {
+                        if v > max {
+                            max = v;
                         }
                     }
 
-                    (bias_grad, weight_grad, logits)
-                },
-            )
-            .reduce(
-                || {
-                    (
-                        vec![0.0f32; n_classes],
-                        vec![0.0f32; weights_len],
-                        vec![0.0f32; n_classes],
-                    )
-                },
-                |mut left, right| {
-                    for (dst, src) in left.0.iter_mut().zip(right.0.iter()) {
-                        *dst += *src;
-                    }
-                    for (dst, src) in left.1.iter_mut().zip(right.1.iter()) {
-                        *dst += *src;
-                    }
-                    left
-                },
-            ),
-    };
+                    let mut sum = 0.0;
 
-    for (g, &wi) in weight_grad.iter_mut().zip(w_base.iter()) {
-        *g += l1_reg * wi.signum() + l2_reg * wi;
+                    for v in row.iter_mut() {
+                        *v = (*v - max).exp();
+                        sum += *v;
+                    }
+
+                    let inv_sum = 1.0 / sum;
+
+                    for v in row.iter_mut() {
+                        *v *= inv_sum;
+                    }
+
+                    row[label as usize] -= 1.0;
+                });
+        }
     }
 
-    let mut grad = Vec::with_capacity(n_classes + weights_len);
-    grad.extend_from_slice(&bias_grad);
-    grad.extend_from_slice(&weight_grad);
+    let mut grad = Array1::<f32>::zeros(w.len());
 
-    for g in grad.iter_mut() {
-        *g *= inv_sample_weights_sum;
+    // bias gradient directly into first part
+    let mut bias_grad = grad.slice_mut(s![..n_classes]);
+
+    for (dst, src) in bias_grad.iter_mut().zip(scores.sum_axis(Axis(0))) {
+        *dst = src * inv_sample_weights_sum;
     }
 
-    Array1::from_vec(grad)
+    // weight gradient directly into second part
+    let mut weight_grad = grad.slice_mut(s![n_classes..]);
+
+    let weight_grad_matrix = x_t.dot(&scores);
+
+    for ((dst, &g), &wi) in weight_grad
+        .iter_mut()
+        .zip(weight_grad_matrix.t().iter())
+        .zip(w_base.iter())
+    {
+        *dst = (g + l1_reg * wi.signum() + l2_reg * wi) * inv_sample_weights_sum;
+    }
+
+    grad
 }
