@@ -13,12 +13,11 @@ from pathlib import Path
 
 
 params = {
-    "rows" : [1000, 10000, 100000, 500000, 1000000, 5000000],
+    "rows" : [100, 1000, 10000, 100000, 500000, 1000000, 5000000],
     "cols" : [500],
     "kwargs" : [{"n_quantiles" : a, "output_distribution" : b, "random_state" : 42} for a in [1000] for b in ['normal', 'uniform']],
     "njobs" : [1,2,4,8,16]
 }
-
 
 
 def main(repeats: int = 4):
@@ -39,34 +38,24 @@ def main(repeats: int = 4):
         mean = sum(ts) / len(ts)
         std = statistics.stdev(ts) if len(ts) > 1 else 0.0
         return mean, std, result
+     
     
     for njobs in params["njobs"]:
-        for kwargs in params["kwargs"]:
-            for cols in params["cols"]:
+        for cols in params["cols"]:
+            for kwargs in params["kwargs"]:
                 for rows in params["rows"]:
                     print(f"Rows: {rows}, Cols: {cols}")
-                    X = np.random.rand(rows, cols).astype(np.float64, order='C')
+                    X = np.random.rand(rows, cols).astype(np.float64)
 
-                        # Fit and transform using sklearn
-                    sklearn_transformer = SklearnQuantileTransformer(
-                            **kwargs
-                    )
-                    sklearn_transformer.fit(X)
-                    sklearn_mean, sklearn_std, _ = time_it(
-                        lambda: sklearn_transformer.transform(X)
-                    )
+                    # Fit and transform using sklearn
+                    sklearn_transformer = SklearnQuantileTransformer(**kwargs)
+                    sklearn_mean, sklearn_std, _ = time_it(lambda: sklearn_transformer.fit_transform(X))
 
-                        # Fit and transform using parallel implementation
-                    parallel_transformer = ParallelQuantileTransformer(
-                        **kwargs,
-                        n_jobs=njobs,
-                    )
-                    parallel_transformer.fit(X)
-                    parallel_mean, parallel_std, _ = time_it(
-                        lambda: parallel_transformer.transform(X)
-                    )
-
+                    # Fit and transform using parallel implementation
+                    parallel_transformer = ParallelQuantileTransformer(**kwargs, n_jobs=njobs)
+                    parallel_mean, parallel_std, _ = time_it(lambda: parallel_transformer.fit_transform(X))
                     # Compare results
+
 
                     results = {
                         "rows": rows,
@@ -75,23 +64,18 @@ def main(repeats: int = 4):
                         "sklearn_std": sklearn_std,
                         "parallel_mean": parallel_mean,
                         "parallel_std": parallel_std,
-                        "error_quantiles": (
-                            (sklearn_transformer.quantiles_ - parallel_transformer.quantiles_)
-                            ** 2
-                        ).mean(),
+                        "error_quantiles": ((sklearn_transformer.quantiles_ - parallel_transformer.quantiles_)**2).mean(),
                         "kwargs": kwargs,
                         "njobs": njobs
                     }
 
-                    if not Path(__file__).parent.joinpath("results_transform.csv").exists():
+                    if not Path(__file__).parent.joinpath("results_fit_transform.csv").exists():
                         results_csv = pd.DataFrame([results])
-                        results_csv.to_csv(Path(__file__).parent / "results_transform.csv", index=False)
+                        results_csv.to_csv(Path(__file__).parent / "results_fit_transform.csv", index=False)
                     else:
-                        results_csv = pd.read_csv(Path(__file__).parent / "results_transform.csv")
-                        results_csv = pd.concat(
-                            [results_csv, pd.DataFrame([results])], ignore_index=True
-                        )
-                        results_csv.to_csv(Path(__file__).parent / "results_transform.csv", index=False)
+                        results_csv = pd.read_csv(Path(__file__).parent / "results_fit_transform.csv")
+                        results_csv = pd.concat([results_csv, pd.DataFrame([results])], ignore_index=True)
+                        results_csv.to_csv(Path(__file__).parent / "results_fit_transform.csv", index=False)
 
 
 if __name__ == "__main__":
