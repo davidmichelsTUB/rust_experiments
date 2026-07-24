@@ -12,7 +12,7 @@ CLAUDE.md
 
 /playground
 
-**/results.csv
+**/results*.csv
 
 **/__pycache__/
 
